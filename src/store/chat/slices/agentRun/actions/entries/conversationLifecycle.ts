@@ -29,6 +29,7 @@ import {
 import { generateEntityId, nanoid } from '@lobechat/utils';
 import { toast } from '@lobehub/ui';
 import { t } from 'i18next';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 
 import { type ChatInputEditor } from '@/features/ChatInput';
 import { saveDraft } from '@/features/ChatInput/draftStorage';
@@ -2506,8 +2507,10 @@ export class ConversationLifecycleActionImpl {
       this.#get().replaceMessages(serverMessages, { context: context as any });
       this.#get().associateMessageWithOperation(messageGroupId, operationId);
 
-      // 2. Generate summary via LLM
-      const { model, provider } = agentSelectors.getAgentConfigById(agentId)(getAgentStoreState());
+      const { model, provider } = await resolveNewApiTopicModel(
+        topicId,
+        agentSelectors.getAgentConfigById(agentId)(getAgentStoreState()),
+      );
       const compressionPayload = chainCompressContext(messagesToSummarize);
       let summaryContent = '';
 

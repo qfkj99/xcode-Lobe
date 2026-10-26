@@ -3,6 +3,11 @@ import { HotkeyEnum } from '@lobechat/const/hotkeys';
 import { useLocation } from 'react-router';
 
 import { useNavigateToAgent } from '@/hooks/useNavigateToAgent';
+import {
+  setNewApiNavigationOpen,
+  useNewApiCompactLayout,
+  useNewApiNavigationOpen,
+} from '@/hooks/useNewApiCompactLayout';
 import { usePinnedAgentState } from '@/hooks/usePinnedAgentState';
 import { useGlobalStore } from '@/store/global';
 
@@ -46,9 +51,16 @@ export const useOpenHotkeyHelperHotkey = () => {
 
 export const useToggleLeftPanelHotkey = () => {
   const toggleLeftPanel = useGlobalStore((s) => s.toggleLeftPanel);
-  return useHotkeyById(HotkeyEnum.ToggleLeftPanel, () => toggleLeftPanel(), {
-    enableOnContentEditable: true,
-  });
+  const compact = useNewApiCompactLayout();
+  const navigationOpen = useNewApiNavigationOpen();
+  return useHotkeyById(
+    HotkeyEnum.ToggleLeftPanel,
+    () => (compact ? setNewApiNavigationOpen(!navigationOpen) : toggleLeftPanel()),
+    {
+      enableOnContentEditable: true,
+    },
+    [compact, navigationOpen, toggleLeftPanel],
+  );
 };
 
 export const useToggleRightPanelHotkey = () => {

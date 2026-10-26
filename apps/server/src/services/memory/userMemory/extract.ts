@@ -84,6 +84,7 @@ import { S3 } from '@/server/modules/S3';
 import { getUserScopedAiProviderRuntimeState } from '@/server/services/aiProviderAccess';
 import { createFtsSearchRepo } from '@/server/services/ftsSearch';
 import { recordUserMemoryLexicalSearchDecision } from '@/server/services/ftsSearch/observability';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import {
   AsyncTaskError,
   type AsyncTaskErrorBody,
@@ -518,6 +519,8 @@ export const resolveRuntimeAgentConfig = (
   options?: RuntimeResolveOptions,
   hooks?: ModelRuntimeHooks,
 ) => {
+  if (bridgeEnabled())
+    throw new Error('Background memory extraction is unavailable in this deployment');
   const normalizedPreferredProviders = (options?.preferred?.providerIds || [])
     .map(normalizeProvider)
     .filter(Boolean);

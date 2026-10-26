@@ -1,0 +1,126 @@
+name: ${COMPOSE_PROJECT_NAME:-newapi-lobehub}
+
+services:
+  lobe:
+    image: ${LOBE_IMAGE:-lobehub:newapi-v2.2.20-local}
+    ports:
+      - '127.0.0.1:3210:3210'
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    environment:
+      APP_URL: ${LOBE_PUBLIC_URL:?Set LOBE_PUBLIC_URL}
+      INTERNAL_APP_URL: http://localhost:3210
+      DATABASE_DRIVER: node
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgresql:5432/lobehub
+      FTS_SEARCH_PROVIDER: pg_like
+      REDIS_URL: redis://redis:6379
+      REDIS_PREFIX: lobehub
+      REDIS_TLS: '0'
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET}
+      KEY_VAULTS_SECRET: ${KEY_VAULTS_SECRET:?Set KEY_VAULTS_SECRET}
+      AUTH_DISABLE_EMAIL_PASSWORD: '1'
+      AUTH_COOKIE_PREFIX: newapi-lobe
+      AUTH_ADDITIONAL_TRUSTED_ORIGINS: ${NEW_API_PUBLIC_URL:?Set NEW_API_PUBLIC_URL}
+      ENABLED_CSP: '0'
+      ENABLE_AGENT_GATEWAY: '0'
+      NEW_API_PUBLIC_URL: ${NEW_API_PUBLIC_URL:?Set NEW_API_PUBLIC_URL}
+      NEW_API_INTERNAL_URL: ${NEW_API_INTERNAL_URL:?Set NEW_API_INTERNAL_URL}
+      NEW_API_CHAT_BRIDGE_SECRET: ${NEW_API_CHAT_BRIDGE_SECRET:?Set NEW_API_CHAT_BRIDGE_SECRET}
+      S3_ENDPOINT: ${S3_ENDPOINT:?Set S3_ENDPOINT}
+      S3_INTERNAL_ENDPOINT: http://storage:9000
+      S3_BUCKET: lobehub
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY}
+      S3_ENABLE_PATH_STYLE: '1'
+      S3_SET_ACL: '0'
+      LLM_VISION_IMAGE_USE_BASE64: '1'
+    healthcheck:
+      test: ['CMD', '/bin/node', '-e', 'fetch("http://127.0.0.1:3210/", {redirect:"manual"}).then(r=>process.exit(r.status===401?0:1)).catch(()=>process.exit(1))']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - lobe
+
+  postgresql:
+    image: pgvector/pgvector:0.8.1-pg17@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+    mem_limit: 1g
+    environment:
+      POSTGRES_DB: lobehub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -h 127.0.0.1 -d lobehub']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    restart: unless-stopped
+    networks: [lobe]
+
+  redis:
+    image: redis:7-alpine@sha256:892022f9f18c26c92c30e15194d132f90044af87b94a491a75429bbc3982eab1
+    mem_limit: 256m
+    command: ['redis-server', '--save', '60', '1000', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+    networks: [lobe]
+
+  storage:
+    image: rustfs/rustfs@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
+    mem_limit: 1g
+    ports:
+      - '127.0.0.1:9000:9000'
+    environment:
+      RUSTFS_CONSOLE_ENABLE: 'false'
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY}
+    command: ['/data']
+    volumes:
+      - storage-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:9000/health >/dev/null 2>&1 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks: [lobe]
+
+  storage-init:
+    image: rustfs/rc@sha256:ab024bfebee49a750ce886b4c70963ccd9ddaa03f491704a90710641d7a26699
+    depends_on:
+      storage:
+        condition: service_healthy
+    environment:
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY}
+      LOBE_PUBLIC_URL: ${LOBE_PUBLIC_URL:?Set LOBE_PUBLIC_URL}
+    entrypoint: ['/bin/sh', '/bootstrap/init-storage.sh']
+    volumes:
+      - ./init-storage.sh:/bootstrap/init-storage.sh:ro
+    restart: 'no'
+    networks: [lobe]
+
+networks:
+  lobe:
+    driver: bridge
+volumes:
+  postgres-data:
+  redis-data:
+  storage-data:

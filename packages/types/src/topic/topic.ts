@@ -786,6 +786,7 @@ export interface RecentTopic {
 }
 
 export interface CreateTopicParams {
+  agentId?: string | null;
   favorite?: boolean;
   groupId?: string | null;
   messages?: string[];

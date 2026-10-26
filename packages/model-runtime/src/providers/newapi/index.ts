@@ -187,7 +187,13 @@ export const params = {
       }
     });
 
-    return processMultiProviderModelList([...enrichedModelList, ...additionalModels], 'newapi');
+    // A hosted New API account may only select models returned by its authenticated /v1/models.
+    return processMultiProviderModelList(
+      process.env.NEW_API_CHAT_BRIDGE_SECRET
+        ? enrichedModelList
+        : [...enrichedModelList, ...additionalModels],
+      'newapi',
+    );
   },
   routers: (options, runtimeContext?: { model?: string }) => {
     const userBaseURL = options.baseURL?.replace(/\/v\d+[a-z]*\/?$/, '') || '';

@@ -68,6 +68,7 @@ import {
 } from '@/store/user/selectors';
 import { type ChatTopic, type ChatTopicStatus, type CreateTopicParams } from '@/types/topic';
 import { setNamespace } from '@/utils/storeDebug';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 
 import { displayMessageSelectors } from '../message/selectors';
 import { type TopicData } from './initialState';
@@ -517,14 +518,15 @@ export class ChatTopicActionImpl {
       if (shouldShowPlaceholder) internal_updateTopicTitleInSummary(topicId, topic.title);
     };
 
-    // Get current agent for topic
-    const { model, provider } = systemAgentSelectors.topic(useUserStore.getState());
-
     // Structured generation, the same way `SystemAgentService.generateTopicTitle`
     // does it: the chain asks for `TOPIC_TITLE_JSON_SCHEMA`, so read the title
     // off the parsed object. Streaming a completion here used to write the raw
     // answer to `topic.title`, which named topics `{"title":"简单问候"}`.
     try {
+      const { model, provider } = await resolveNewApiTopicModel(
+        topicId,
+        systemAgentSelectors.topic(useUserStore.getState()),
+      );
       const { data } = await aiChatService.generateJSON(
         {
           ...chainSummaryTitle(
@@ -1921,7 +1923,7 @@ export class ChatTopicActionImpl {
     // inside that project. Only for the agent it was staged on: a pending
     // directory must never land on another agent's topic.
     const pending = this.#get().pendingNewTopicDirectory;
-    const targetSessionId = params.sessionId ?? this.#get().activeAgentId;
+    const targetSessionId = params.agentId ?? params.sessionId ?? this.#get().activeAgentId;
     const pendingDirectoryId =
       pending && pending.agentId === targetSessionId
         ? pending.projectWorkingDirectoryId
@@ -1936,7 +1938,16 @@ export class ChatTopicActionImpl {
       'internal_createTopic',
     );
 
-    const topicId = await topicService.createTopic(createParams);
+    let topicId: string;
+    try {
+      topicId = await topicService.createTopic(createParams);
+    } catch (error) {
+      this.#get().internal_dispatchTopic(
+        { type: 'deleteTopic', id: tmpId },
+        'createTopic/rollback',
+      );
+      throw error;
+    }
     if (pendingDirectoryId) this.#get().setPendingNewTopicDirectory();
     await this.#get().refreshTopic();
 

@@ -9,6 +9,8 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { FileS3 } from '@/server/modules/S3';
 import { FileUploadService } from '@/server/services/fileUpload';
 import { reserveUpload, uploadConflict } from '@/server/services/fileUploadReservation';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
+import { scopeBridgeUploadPath } from '@/server/services/newApiBridge/uploads';
 
 const MAX_MULTIPART_PARTS = 10_000;
 const MULTIPART_PART_SIZE = 32 * 1024 * 1024;
@@ -50,7 +52,11 @@ const getMultipartPartSize = (size: number) =>
 const getActiveSession = async (
   service: FileUploadService,
   pathname: string,
-): Promise<FileUploadItem | undefined> => service.assertActiveOrLegacy(pathname);
+): Promise<FileUploadItem | undefined> => {
+  const upload = await service.assertActiveOrLegacy(pathname);
+  if (bridgeEnabled() && !upload) throw uploadConflict('An owned upload session is required');
+  return upload;
+};
 
 const validateMultipartSession = (upload: FileUploadItem, input: { uploadId: string }): number => {
   if (upload.multipartUploadId !== input.uploadId || !upload.multipartPartSize) {
@@ -71,9 +77,11 @@ export const uploadRouter = router({
     .use(withScopedPermission('file:upload'))
     .input(multipartUploadSchema)
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
       const upload = await ctx.fileUploadService.findLatest(input.pathname);
 
       if (!upload) {
+        if (bridgeEnabled()) throw uploadConflict('An owned upload session is required');
         if (await ctx.fileUploadService.hasAnyLiveSession(input.pathname)) {
           throw uploadConflict('Upload pathname belongs to another session');
         }
@@ -97,6 +105,7 @@ export const uploadRouter = router({
     .use(withScopedPermission('file:upload'))
     .input(z.object({ pathname: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
       const upload = await ctx.fileUploadService.findLatest(input.pathname);
       if (!upload || upload.status === 'released' || upload.status === 'expired') {
         return { success: true };
@@ -116,6 +125,7 @@ export const uploadRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
       const s3 = new FileS3();
       const upload = await getActiveSession(ctx.fileUploadService, input.pathname);
 
@@ -164,6 +174,9 @@ export const uploadRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
+      if (bridgeEnabled() && input.size === undefined)
+        throw uploadConflict('Upload size is required');
       const s3 = new FileS3();
       if (input.size === undefined) {
         const uploadId = await s3.createMultipartUpload(input.pathname, input.contentType);
@@ -212,6 +225,7 @@ export const uploadRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
       const s3 = new FileS3();
       const upload = await getActiveSession(ctx.fileUploadService, input.pathname);
       if (!upload) {
@@ -239,6 +253,9 @@ export const uploadRouter = router({
     .use(withScopedPermission('file:upload'))
     .input(z.object({ pathname: z.string().min(1), size: uploadSizeSchema }))
     .mutation(async ({ ctx, input }) => {
+      input.pathname = scopeBridgeUploadPath(ctx.userId, input.pathname);
+      if (bridgeEnabled() && input.size === undefined)
+        throw uploadConflict('Upload size is required');
       const s3 = new FileS3();
       if (input.size === undefined) return s3.createPreSignedUrl(input.pathname);
 

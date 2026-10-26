@@ -20,6 +20,7 @@ interface ModelSwitchSubmenuPopupProps {
   onModelChange?: (params: { model: string; provider: string }) => Promise<void>;
   /** Called with `false` once a row is picked, so the host can close its whole menu. */
   onOpenChange?: (open: boolean) => void;
+  open?: boolean;
   provider?: string;
 }
 
@@ -29,7 +30,16 @@ interface ModelSwitchSubmenuPopupProps {
  * The caller supplies the `DropdownMenuSubmenuRoot` and its trigger row.
  */
 export const ModelSwitchSubmenuPopup = memo<ModelSwitchSubmenuPopupProps>(
-  ({ activeSecondaryText, enabledList, model, notice, onModelChange, onOpenChange, provider }) => (
+  ({
+    activeSecondaryText,
+    enabledList,
+    model,
+    notice,
+    onModelChange,
+    onOpenChange,
+    open,
+    provider,
+  }) => (
     <DropdownMenuPortal>
       <DropdownMenuPositioner alignOffset={-4} anchor={null} placement="right" sideOffset={8}>
         <DropdownMenuPopup className={styles.container} onKeyDown={stopPropagation}>
@@ -38,6 +48,7 @@ export const ModelSwitchSubmenuPopup = memo<ModelSwitchSubmenuPopupProps>(
             enabledList={enabledList}
             model={model}
             notice={notice}
+            open={open}
             provider={provider}
             onModelChange={onModelChange}
             onOpenChange={onOpenChange}

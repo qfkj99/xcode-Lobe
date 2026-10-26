@@ -53,6 +53,7 @@ const ModelSwitchPanel = memo<ModelSwitchPanelProps>(
                   enabledList={enabledList}
                   model={modelProp}
                   notice={notice}
+                  open={isOpen}
                   pricingMode={pricingMode}
                   provider={providerProp}
                   onModelChange={onModelChange}

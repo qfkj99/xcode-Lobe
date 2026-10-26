@@ -16,6 +16,8 @@ import { RequestTrigger } from '@lobechat/types';
 import debug from 'debug';
 
 import { UserModel } from '@/database/models/user';
+import { TopicModel } from '@/database/models/topic';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import type { LobeChatDatabase } from '@/database/type';
 import { initModelRuntimeForRequest } from '@/server/modules/AgentRuntime/llmRelay/oneShot';
 
@@ -56,7 +58,15 @@ export class SystemAgentService {
     const { userPrompt, lastAssistantContent, topicId } = params;
 
     try {
-      const { model, provider } = await this.getTaskModelConfig('topic');
+      const fallback = await this.getTaskModelConfig('topic');
+      const topic = bridgeEnabled()
+        ? await new TopicModel(this.db, this.userId).findById(topicId)
+        : undefined;
+      if (bridgeEnabled() && !topic) throw new Error('New API topic is unavailable');
+      const { model, provider } =
+        topic?.model && topic.provider
+          ? { model: topic.model, provider: topic.provider }
+          : fallback;
       const locale = await this.getUserLocale();
 
       log('generateTopicTitle: locale=%s, model=%s, provider=%s', locale, model, provider);

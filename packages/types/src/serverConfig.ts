@@ -161,6 +161,7 @@ export interface GlobalServerConfig {
    */
   llmRelayAvailable?: boolean;
   memory?: GlobalMemoryConfig;
+  newApiChat?: boolean;
   multimodalUnderstanding?: MultimodalUnderstandingConfig;
   oAuthSSOProviders?: string[];
   /**

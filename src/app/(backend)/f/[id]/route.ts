@@ -3,6 +3,8 @@ import debug from 'debug';
 import { FileModel } from '@/database/models/file';
 import { getServerDB } from '@/database/server';
 import { FileService } from '@/server/services/file';
+import { getBridgeRuntimeIdentity } from '@/server/services/newApiBridge/runtime';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 
 const log = debug('lobe-file:proxy');
 
@@ -42,13 +44,24 @@ export const GET = async (req: Request, segmentData: { params: Params }) => {
       });
     }
 
+    if (bridgeEnabled()) {
+      try {
+        await getBridgeRuntimeIdentity(db, file.userId);
+      } catch {
+        return new Response('File not found', { status: 404 });
+      }
+    }
+
     // Create file service with file owner's userId
     const fileService = new FileService(db, file.userId);
 
     const isDownload = new URL(req.url).searchParams.get('download') === '1';
     const redirectUrl = isDownload
-      ? await fileService.createDownloadUrl(file.url, file.name)
-      : await fileService.createCachedPreSignedUrlForPreview(file.url);
+      ? await fileService.createDownloadUrl(file.url, file.name, bridgeEnabled() ? 60 : undefined)
+      : await fileService.createCachedPreSignedUrlForPreview(
+          file.url,
+          bridgeEnabled() ? 60 : undefined,
+        );
     log('Web S3 presigned URL generated (%s)', isDownload ? 'download' : 'preview');
 
     // Return 302 redirect

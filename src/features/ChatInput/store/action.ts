@@ -1,3 +1,4 @@
+import type { VoiceMessageRecording } from '@lobechat/types';
 import { KEY_ESCAPE_COMMAND } from 'lexical';
 import { type StateCreator } from 'zustand/vanilla';
 
@@ -17,6 +18,7 @@ export interface Action {
   getJSONState: () => Record<string, any> | undefined;
   getMarkdownContent: () => string;
   handleSendButton: () => void;
+  handleVoiceMessageSend: (recording: VoiceMessageRecording) => boolean;
   handleStop: () => void;
   pauseInputCompletion: (error: State['inputCompletionError']) => void;
   setActiveAudioInputMode: (mode?: State['activeAudioInputMode']) => void;
@@ -60,6 +62,7 @@ export const store: CreateStore = (publicState) => (set, get) => ({
     return String(readDocument(get().editor, 'markdown') || '').trimEnd();
   },
   handleSendButton: () => {
+    if (get().newApiModelSelectionPending) return;
     const editor = get().editor;
     if (!editor) return;
 
@@ -117,6 +120,10 @@ export const store: CreateStore = (publicState) => (set, get) => ({
         editor.focus();
       });
     });
+  },
+  handleVoiceMessageSend: (recording) => {
+    if (get().newApiModelSelectionPending) return false;
+    return get().onVoiceMessageSend?.(recording) ?? false;
   },
 
   handleStop: () => {

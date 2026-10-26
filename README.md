@@ -1,3 +1,5 @@
+> **New API integration fork:** This repository includes the patched LobeHub application and its standalone Docker build tools. Follow the [independent-server deployment guide](deploy/lobehub/README.md). The upstream default Docker image does not include this integration. See [source provenance](UPSTREAM.md) for the pinned upstream version and workflow policy.
+
 <div align="center"><a name="readme-top"></a>
 
 [![][image-banner]][vercel-link]

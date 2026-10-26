@@ -1,0 +1,19 @@
+{
+  "upstreamTag": "v2.2.20",
+  "upstreamCommit": "49204982cab98bfa2f2fb6831a34d5018a2af6be",
+  "originalDependencyImageId": "sha256:b2affcb5996a5a540914f3b79cbef7d965a90cad2329772169ca9577dc51f20f",
+  "corepack": "0.36.0",
+  "rootPnpm": "12.4.1",
+  "runtimePnpm": "12.14.0",
+  "converterPeer": {
+    "zod-openapi": "4.2.4",
+    "zod": "3.25.76"
+  },
+  "hashes": {
+    "pnpm-lock.yaml": "5c7913f4019c7b75f881ec3b5fec6bf83fa538d8325a449ed53fa2ced861324c",
+    "runtime-pnpm-lock.yaml": "df5c04ff6f29522137b99cb6f41c27b1e40a8a3f42ff39be3978262ea83d8cf4",
+    "runtime-package.json": "31f86f1cac6f3dcc2cfeeb6113ab1a097f4665ade644d3f430babb256930cc7f",
+    "converter-package.json": "18a284dcc0e7ac95ce1475ba264b6eb1e434ea273d3915cb9487e4fd08cb75cd",
+    "converter-package-lock.json": "23b5a00da0560f7501c944e09aa2660d7265afa7918d4f68fe4750efb26ccb6b"
+  }
+}

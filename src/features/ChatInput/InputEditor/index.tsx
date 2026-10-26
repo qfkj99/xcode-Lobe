@@ -26,9 +26,9 @@ import { useSingleton } from '@/hooks/useSingleton';
 import { aiChatService } from '@/services/aiChat';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
-import { useChatStore } from '@/store/chat';
 import { useServerConfigStore } from '@/store/serverConfig';
 import { useUserStore } from '@/store/user';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 import {
   labPreferSelectors,
   settingsSelectors,
@@ -42,6 +42,7 @@ import { useChatInputHistory } from '../hooks/useChatInputHistory';
 import { useChatInputResourceAccess } from '../hooks/useChatInputResourceAccess';
 import { useEffectiveModel } from '../hooks/useEffectiveModel';
 import { useLargeFileLocalPath } from '../hooks/useLargeFileLocalPath';
+import { useTopicId } from '../hooks/useTopicId';
 import { useChatInputStore, useStoreApi } from '../store';
 import {
   INSERT_ACTION_TAG_COMMAND,
@@ -122,6 +123,7 @@ const InputEditor = memo<{
   const userId = useUserStore(userProfileSelectors.userId);
   const { enableScope, disableScope } = useHotkeysContext();
   const agentId = useAgentId();
+  const topicId = useTopicId();
   const inputHistoryScope = useMemo(() => ({ agentId, userId }), [agentId, userId]);
 
   const { compositionProps, isComposingRef } = useIMECompositionEvent();
@@ -325,16 +327,17 @@ const InputEditor = memo<{
       const abortController = new AbortController();
       abortSignal.addEventListener('abort', () => abortController.abort());
 
-      const currentTopicId = useChatStore.getState().activeTopicId;
+      const currentTopicId = topicId;
 
       let envelope: { data?: { completion?: string } | null; tracingId?: string } | null;
       try {
+        const topicModel = await resolveNewApiTopicModel(currentTopicId, config);
         envelope = (await aiChatService.generateJSON(
           {
             messages,
             metadata: { trigger: RequestTrigger.InputCompletion },
-            model: config.model,
-            provider: config.provider,
+            model: topicModel.model,
+            provider: topicModel.provider,
             schema,
             tracing: {
               agentId,
@@ -371,7 +374,7 @@ const InputEditor = memo<{
       }
       return completion;
     },
-    [agentId, getMessagesRef, isComposingRef, storeApi, tracingIdBySuggestion],
+    [agentId, getMessagesRef, isComposingRef, storeApi, topicId, tracingIdBySuggestion],
   );
 
   const handleSuggestionAccepted = useCallback(

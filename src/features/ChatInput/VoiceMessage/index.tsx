@@ -630,6 +630,7 @@ const VoiceMessage = memo(() => {
 
   const commitRecording = useCallback(
     async (captured?: VoiceMessageRecording) => {
+      if (storeApi.getState().newApiModelSelectionPending) return;
       if (!canUseVoiceMessageRef.current || sendCommittedRef.current) return;
       sendCommittedRef.current = true;
 
@@ -643,7 +644,7 @@ const VoiceMessage = memo(() => {
           return;
         if (!onVoiceMessageSend) return;
 
-        const accepted = onVoiceMessageSend(voiceRecording);
+        const accepted = storeApi.getState().handleVoiceMessageSend(voiceRecording);
         if (!accepted) return;
 
         recorder.reset();
@@ -652,7 +653,7 @@ const VoiceMessage = memo(() => {
         sendCommittedRef.current = false;
       }
     },
-    [onVoiceMessageSend, recorder, setActiveAudioInputMode],
+    [onVoiceMessageSend, recorder, setActiveAudioInputMode, storeApi],
   );
 
   const handleStart = useCallback(() => {

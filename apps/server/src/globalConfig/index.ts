@@ -19,6 +19,7 @@ import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { OIDC_ISSUER_PATH } from '@/libs/oidc-provider/routes';
 import { parseSystemAgent } from '@/server/globalConfig/parseSystemAgent';
 import { isLlmRelayDeploymentReady } from '@/server/modules/AgentRuntime/llmRelay/deployment';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import { type GlobalServerConfig } from '@/types/serverConfig';
 import { cleanObject } from '@/utils/object';
 
@@ -160,7 +161,8 @@ export const getServerGlobalConfig = async () => {
     enableEmailVerification: authEnv.AUTH_EMAIL_VERIFICATION,
     enableComposio: !!composioEnv.COMPOSIO_API_KEY,
     enableGatewayMode:
-      ENABLE_BUSINESS_FEATURES || (!!appEnv.ENABLE_AGENT_GATEWAY && !!appEnv.AGENT_GATEWAY_URL),
+      !bridgeEnabled() &&
+      (ENABLE_BUSINESS_FEATURES || (!!appEnv.ENABLE_AGENT_GATEWAY && !!appEnv.AGENT_GATEWAY_URL)),
     enableLobehubSkill: !!(appEnv.MARKET_TRUSTED_CLIENT_SECRET && appEnv.MARKET_TRUSTED_CLIENT_ID),
     enableMagicLink: authEnv.AUTH_ENABLE_MAGIC_LINK,
     enableMarketTrustedClient: !!(
@@ -180,11 +182,14 @@ export const getServerGlobalConfig = async () => {
       : undefined),
 
     // Expose Agent Gateway URL to client (used by hetero agents; also required for queue mode)
-    ...(appEnv.AGENT_GATEWAY_URL ? { agentGatewayUrl: appEnv.AGENT_GATEWAY_URL } : undefined),
+    ...(!bridgeEnabled() && appEnv.AGENT_GATEWAY_URL
+      ? { agentGatewayUrl: appEnv.AGENT_GATEWAY_URL }
+      : undefined),
     agentGatewayProtocol: resolveAgentGatewayProtocol(),
     // Whether the server can relay an LLM call to a tab (gateway + Redis): only
     // then does the browser drop its own provider fallback for the one-shot relay.
-    llmRelayAvailable: isLlmRelayDeploymentReady(),
+    llmRelayAvailable: !bridgeEnabled() && isLlmRelayDeploymentReady(),
+    newApiChat: bridgeEnabled(),
 
     image: cleanObject({
       defaultImageNum: imageEnv.AI_IMAGE_DEFAULT_IMAGE_NUM,

@@ -34,6 +34,11 @@ import { DocumentService } from '@/server/services/document';
 import { FileService } from '@/server/services/file';
 import { downloadRemoteImage } from '@/server/services/file/downloadRemoteImage';
 import { FileUploadService } from '@/server/services/fileUpload';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
+import {
+  scopeBridgeUploadHash,
+  scopeBridgeUploadPath,
+} from '@/server/services/newApiBridge/uploads';
 import { assertCanPerformResourceAction } from '@/server/services/resourcePermission';
 import { hasWorkspaceScopedPermission } from '@/server/services/workspacePermission';
 import { createResourceContentPreview } from '@/server/utils/resourceContentPreview';
@@ -219,6 +224,7 @@ export const fileRouter = router({
     .use(checkFileStorageUsage)
     .input(z.object({ hash: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      input.hash = scopeBridgeUploadHash(ctx.userId, input.hash);
       const existingFile = await ctx.fileModel.checkHash(input.hash);
       const existingHashUrl = existingFile?.isExist ? existingFile.url : undefined;
       if (!existingHashUrl) return existingFile;
@@ -238,10 +244,17 @@ export const fileRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const metadata = stripAgentShareFileProvenance(input.metadata);
+      input.url = scopeBridgeUploadPath(ctx.userId, input.url);
+      input.hash = scopeBridgeUploadHash(ctx.userId, input.hash || '');
+      const metadata = stripAgentShareFileProvenance(
+        bridgeEnabled() ? { ...input.metadata, path: input.url } : input.metadata,
+      );
       const existingFile = await ctx.fileModel.checkHash(input.hash!);
       const { isExist } = existingFile;
       const latestUpload = await ctx.fileUploadService.findLatest(input.url);
+      if (bridgeEnabled() && !latestUpload && !(isExist && existingFile.url === input.url)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'An owned upload session is required' });
+      }
       if (!latestUpload && (await ctx.fileUploadService.hasAnyLiveSession(input.url))) {
         throw new TRPCError({
           code: 'CONFLICT',
@@ -341,6 +354,9 @@ export const fileRouter = router({
           const { contentLength } = await ctx.fileService.getFileMetadata(input.url);
           if (contentLength >= 1) actualSize = contentLength;
         } catch {
+          if (bridgeEnabled()) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Uploaded file is unavailable' });
+          }
           // Compatibility path for clients that uploaded before reservations were introduced.
         }
       }

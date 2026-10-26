@@ -187,3 +187,7 @@ apps/desktop/core-dist
 # Packaged builtin desktop core
 /apps/desktop/core.asar
 /apps/desktop/core.asar.unpacked/
+
+# Reviewed locks required by the standalone New API integration build.
+!deploy/lobehub/dependencies/pnpm-lock.yaml
+deploy/lobehub/*.env

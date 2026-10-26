@@ -7,6 +7,7 @@ import { fileEnv } from '@/envs/file';
 import { getRedisConfig } from '@/envs/redis';
 import { initializeRedis, isRedisEnabled } from '@/server/modules/Redis';
 import { FileS3 } from '@/server/modules/S3';
+import { bridgeConfig, bridgeEnabled } from '@/server/services/newApiBridge/security';
 
 import type { FileServiceImpl, PreSignedUpload } from './type';
 
@@ -38,9 +39,11 @@ const getPresignedPreviewCacheTtlSeconds = (expiresInSeconds: number) =>
 export class S3StaticFileImpl implements FileServiceImpl {
   private readonly s3: FileS3;
   private readonly db: LobeChatDatabase;
+  private readonly userId?: string;
 
-  constructor(db: LobeChatDatabase) {
+  constructor(db: LobeChatDatabase, userId?: string) {
     this.db = db;
+    this.userId = userId;
     this.s3 = new FileS3();
   }
 
@@ -192,6 +195,17 @@ export class S3StaticFileImpl implements FileServiceImpl {
     try {
       const urlObject = new URL(url);
       const { pathname } = urlObject;
+
+      if (bridgeEnabled()) {
+        if (!this.userId || urlObject.origin !== bridgeConfig().appURL.origin) return null;
+        const match = /^\/f\/([^/]+)$/.exec(pathname);
+        if (!match) return null;
+        const file = await new FileModel(this.db, this.userId).findById(match[1]);
+        // Resolve only the current user's stored object, never another URL alias.
+        if (!file || file.userId !== this.userId || !file.url || /^(?:[a-z]+:|\/)/i.test(file.url))
+          return null;
+        return file.url;
+      }
 
       // Case 1: File proxy URL pattern /f/{fileId} - query database for S3 key
       if (pathname.startsWith('/f/')) {

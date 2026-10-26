@@ -17,6 +17,7 @@ import { agentByIdSelectors } from '@/store/agent/selectors';
 import { aiProviderSelectors, useAiInfraStore } from '@/store/aiInfra';
 import { useChatStore } from '@/store/chat';
 import { topicSelectors } from '@/store/chat/slices/topic/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
 import { type EnabledProviderWithModels } from '@/types/aiProvider';
 
 interface ResolveChatInputNoticeParams {
@@ -206,7 +207,11 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
   // Waiting on it for a `fixed` agent would swallow a genuine warning.
   const isMemberOverridePending = selectionPolicy === 'member' && isPreferenceLoading;
 
-  const enabledChatModelList = useEnabledChatModels();
+  const managed = useServerConfigStore((s) => !!s.serverConfig.newApiChat);
+  const menuChatModelList = useEnabledChatModels();
+  const runtimeChatModelList = useAiInfraStore((s) => s.enabledChatModelList);
+  // The menu hides the legacy alias, but existing conversations can still use it.
+  const enabledChatModelList = managed ? runtimeChatModelList || [] : menuChatModelList;
   const builtinAiModelList = useAiInfraStore((s) => s.builtinAiModelList);
   const enabledAiProviders = useAiInfraStore((s) => s.enabledAiProviders);
   const modelRedirects = useAiInfraStore((s) => s.modelRedirects);
@@ -218,7 +223,7 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
   const currentChatModel = findEnabledChatModel(enabledChatModelList, model, provider);
   const staleModelState = useMemo(
     () =>
-      isModelConfigReady
+      isModelConfigReady && !managed
         ? resolveStaleModelState(
             { model, provider },
             {
@@ -229,7 +234,15 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
             },
           )
         : undefined,
-    [builtinAiModelList, enabledChatModelList, isModelConfigReady, model, modelRedirects, provider],
+    [
+      builtinAiModelList,
+      enabledChatModelList,
+      isModelConfigReady,
+      managed,
+      model,
+      modelRedirects,
+      provider,
+    ],
   );
   const enableTargetProviderId =
     staleModelState?.status === 'notEnabled'
@@ -263,6 +276,7 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
   });
 
   const handleEnableModel = useCallback(async () => {
+    if (managed) return;
     const providerId = enableTargetProviderId;
     if (!providerId) return;
 
@@ -301,6 +315,7 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
     enableTargetProviderId,
     enabledChatModelList,
     hasTopicRow,
+    managed,
     model,
     provider,
     selectModel,

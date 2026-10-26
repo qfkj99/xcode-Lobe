@@ -36,6 +36,8 @@ import { getLLMConfig } from '@/envs/llm';
 import { getServerAiProviderConfig } from '@/server/globalConfig';
 import { createLLMGenerationTracingHook } from '@/server/services/llmGenerationTracing/hook';
 import { ensureFreshOAuthToken } from '@/server/services/oauthDeviceFlow/refresh';
+import { createBridgeRuntime } from '@/server/services/newApiBridge/runtime';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 
 import { KeyVaultsGateKeeper } from '../KeyVaultsEncrypt';
 import apiKeyManager from './apiKeyManager';
@@ -420,6 +422,7 @@ export const initModelRuntimeWithUserPayload = (
   params: any = {},
   hooks?: ModelRuntimeHooks,
 ) => {
+  if (bridgeEnabled()) throw new Error('New API models require a verified server identity');
   const runtimeProvider = payload.runtimeProvider ?? provider;
 
   /**
@@ -474,6 +477,7 @@ export const initModelRuntimeFromDB = async (
   provider: string,
   workspaceId?: string,
 ): Promise<ModelRuntime> => {
+  if (bridgeEnabled()) return createBridgeRuntime(db, userId, provider, workspaceId);
   // 1. Get user's provider configuration from database
   const aiProviderModel = new AiProviderModel(db, userId, workspaceId);
 
@@ -660,6 +664,7 @@ export const initModelRuntimeFromServerConfig = async (params: {
   actorUserId: string;
   workspaceId?: string;
 }): Promise<ModelRuntime> => {
+  if (bridgeEnabled()) throw new Error('Deployment credentials are disabled in New API mode');
   const businessHooks = getBusinessModelRuntimeHooks(
     params.actorUserId,
     ModelProvider.LobeHub,

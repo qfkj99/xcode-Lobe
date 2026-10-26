@@ -4,6 +4,7 @@ import { type CSSProperties, type ReactNode } from 'react';
 import { memo } from 'react';
 
 import ToggleLeftPanelButton, { isMacDesktop } from '@/features/NavPanel/ToggleLeftPanelButton';
+import { useNewApiCompactLayout } from '@/hooks/useNewApiCompactLayout';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 
@@ -35,7 +36,9 @@ const NavHeader = memo<NavHeaderProps>(
     styles,
     ...rest
   }) => {
-    const expand = useGlobalStore(systemStatusSelectors.showLeftPanel);
+    const preferredExpand = useGlobalStore(systemStatusSelectors.showLeftPanel);
+    const compact = useNewApiCompactLayout();
+    const expand = !compact && preferredExpand;
 
     const noContent = !left && !right && !children;
 

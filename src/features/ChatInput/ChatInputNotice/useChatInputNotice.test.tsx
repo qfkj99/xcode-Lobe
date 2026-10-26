@@ -161,6 +161,11 @@ vi.mock('@/store/aiInfra', () => ({
     selector(testState.aiInfra),
 }));
 
+vi.mock('@/store/serverConfig', () => ({
+  useServerConfigStore: (selector: (state: { serverConfig: { newApiChat: boolean } }) => unknown) =>
+    selector({ serverConfig: { newApiChat: false } }),
+}));
+
 describe('useChatInputNotice', () => {
   afterEach(() => {
     vi.restoreAllMocks();

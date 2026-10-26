@@ -6,5 +6,8 @@ export const selectors = {
   inputCompletionErrorVisible: (s: State): InputCompletionError | undefined =>
     s.inputCompletionErrorDismissed ? undefined : s.inputCompletionError,
   inputCompletionPaused: (s: State): boolean => Boolean(s.inputCompletionError),
-  sendButtonProps: (s: State): SendButtonProps => s.sendButtonProps || initialSendButtonState,
+  sendButtonProps: (s: State): SendButtonProps =>
+    s.newApiModelSelectionPending
+      ? { ...(s.sendButtonProps || initialSendButtonState), disabled: true }
+      : s.sendButtonProps || initialSendButtonState,
 };

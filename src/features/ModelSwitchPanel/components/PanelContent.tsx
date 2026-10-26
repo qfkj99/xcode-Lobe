@@ -6,6 +6,7 @@ import { Rnd } from 'react-rnd';
 import { useBusinessModelPricingPrefetch } from '@/business/client/hooks/useBusinessModelPricing';
 import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
 import { useUserStore } from '@/store/user';
+import { useServerConfigStore } from '@/store/serverConfig';
 import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors/general';
 import type { EnabledProviderWithModels } from '@/types/aiProvider';
 
@@ -15,6 +16,7 @@ import { usePanelState } from '../hooks/usePanelState';
 import { usePanelWidthConstraints } from '../hooks/usePanelWidthConstraints';
 import { List } from './List';
 import type { PricingMode } from './ModelDetailPanel';
+import { NewApiGroupPanel } from './NewApiGroupPanel';
 import { Toolbar } from './Toolbar';
 
 interface PanelContentProps {
@@ -26,6 +28,7 @@ interface PanelContentProps {
   notice?: ReactNode;
   onModelChange?: (params: { model: string; provider: string }) => Promise<void>;
   onOpenChange?: (open: boolean) => void;
+  open?: boolean;
   pricingMode?: PricingMode;
   provider?: string;
 }
@@ -38,6 +41,7 @@ export const PanelContent: FC<PanelContentProps> = ({
   notice,
   onModelChange: onModelChangeProp,
   onOpenChange,
+  open,
   pricingMode,
   provider: providerProp,
 }) => {
@@ -46,6 +50,7 @@ export const PanelContent: FC<PanelContentProps> = ({
   const [searchKeyword, setSearchKeyword] = useState('');
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
   const { groupMode, handleGroupModeChange } = usePanelState();
+  const managed = useServerConfigStore((s) => s.serverConfig.newApiChat);
   const { panelHeight, panelWidth, handlePanelWidthChange } = usePanelSize(enabledList.length);
   const {
     constrainedWidth,
@@ -63,25 +68,41 @@ export const PanelContent: FC<PanelContentProps> = ({
           {notice}
         </Flexbox>
       )}
-      <Toolbar
-        showGroupModeSwitch
-        groupMode={groupMode}
-        searchKeyword={searchKeyword}
-        onGroupModeChange={handleGroupModeChange}
-        onSearchKeywordChange={setSearchKeyword}
-      />
-      <List
-        ModelItemComponent={ModelItemComponent}
-        activeSecondaryText={activeSecondaryText}
-        enabledList={enabledList}
-        groupMode={groupMode}
-        model={modelProp}
-        pricingMode={pricingMode}
-        provider={providerProp}
-        searchKeyword={searchKeyword}
-        onModelChange={onModelChangeProp}
-        onOpenChange={onOpenChange}
-      />
+      {managed ? (
+        <NewApiGroupPanel
+          ModelItemComponent={ModelItemComponent}
+          activeSecondaryText={activeSecondaryText}
+          enabledList={enabledList}
+          key={`${open}:${providerProp}:${modelProp}`}
+          model={modelProp}
+          pricingMode={pricingMode}
+          provider={providerProp}
+          onModelChange={onModelChangeProp}
+          onOpenChange={onOpenChange}
+        />
+      ) : (
+        <>
+          <Toolbar
+            showGroupModeSwitch
+            groupMode={groupMode}
+            searchKeyword={searchKeyword}
+            onGroupModeChange={handleGroupModeChange}
+            onSearchKeywordChange={setSearchKeyword}
+          />
+          <List
+            ModelItemComponent={ModelItemComponent}
+            activeSecondaryText={activeSecondaryText}
+            enabledList={enabledList}
+            groupMode={groupMode}
+            model={modelProp}
+            pricingMode={pricingMode}
+            provider={providerProp}
+            searchKeyword={searchKeyword}
+            onModelChange={onModelChangeProp}
+            onOpenChange={onOpenChange}
+          />
+        </>
+      )}
     </>
   );
 

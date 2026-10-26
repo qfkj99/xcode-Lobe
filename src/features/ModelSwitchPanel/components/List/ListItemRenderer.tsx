@@ -21,6 +21,7 @@ import { useActiveWorkspaceSlug } from '@/business/client/hooks/useActiveWorkspa
 import { ProviderItemRender } from '@/components/ModelSelect';
 import { useWorkspaceAwareNavigate } from '@/features/Workspace/useWorkspaceAwareNavigate';
 import { buildWorkspaceAwarePath } from '@/features/Workspace/workspaceAwarePath';
+import { useServerConfigStore } from '@/store/serverConfig';
 
 import { styles } from '../../styles';
 import { type ListItem } from '../../types';
@@ -59,6 +60,7 @@ export const ListItemRenderer = memo<ListItemRendererProps>(
     subscribeScroll,
   }) => {
     const { t } = useTranslation('components');
+    const managed = useServerConfigStore((s) => s.serverConfig.newApiChat);
     const navigate = useWorkspaceAwareNavigate();
     const activeSlug = useActiveWorkspaceSlug();
     const [detailOpen, setDetailOpen] = useState(false);
@@ -106,29 +108,35 @@ export const ListItemRenderer = memo<ListItemRendererProps>(
             paddingBlock={'12px 4px'}
             paddingInline={'12px 8px'}
           >
-            <ProviderItemRender
-              logo={item.provider.logo}
-              name={item.provider.name}
-              provider={item.provider.id}
-              source={item.provider.source}
-            />
-            <ActionIcon
-              className="settings-icon"
-              icon={LucideBolt}
-              size="small"
-              title={t('ModelSwitchPanel.goToSettings')}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const url = urlJoin('/settings/provider', item.provider.id || 'all');
-                if (e.ctrlKey || e.metaKey) {
-                  window.open(buildWorkspaceAwarePath(url, activeSlug), '_blank');
-                } else {
-                  navigate(url);
-                }
-                onClose();
-              }}
-            />
+            {managed ? (
+              <span>{t('ModelSwitchPanel.newApiGroup', { name: item.provider.name })}</span>
+            ) : (
+              <ProviderItemRender
+                logo={item.provider.logo}
+                name={item.provider.name}
+                provider={item.provider.id}
+                source={item.provider.source}
+              />
+            )}
+            {!managed && (
+              <ActionIcon
+                className="settings-icon"
+                icon={LucideBolt}
+                size="small"
+                title={t('ModelSwitchPanel.goToSettings')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const url = urlJoin('/settings/provider', item.provider.id || 'all');
+                  if (e.ctrlKey || e.metaKey) {
+                    window.open(buildWorkspaceAwarePath(url, activeSlug), '_blank');
+                  } else {
+                    navigate(url);
+                  }
+                  onClose();
+                }}
+              />
+            )}
           </Flexbox>
         );
       }

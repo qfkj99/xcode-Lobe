@@ -26,6 +26,7 @@ import { type StoreSetter } from '@/store/types';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors, userGeneralSettingsSelectors } from '@/store/user/selectors';
 import { setNamespace } from '@/utils/storeDebug';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 
 import { PortalViewType } from '../portal/initialState';
 import { type ThreadDispatch } from './reducer';
@@ -207,8 +208,6 @@ export class ChatThreadActionImpl {
 
     internal_updateThreadTitleInSummary(threadId, LOADING_FLAT);
 
-    const { model, provider } = systemAgentSelectors.thread(useUserStore.getState());
-
     const restorePreviousTitle = () => {
       internal_updateThreadTitleInSummary(threadId, portalThread.title);
     };
@@ -216,6 +215,10 @@ export class ChatThreadActionImpl {
     // Structured generation, same as `summaryTopicTitle` — see the note there.
     internal_updateThreadLoading(threadId, true);
     try {
+      const { model, provider } = await resolveNewApiTopicModel(
+        portalThread.topicId,
+        systemAgentSelectors.thread(useUserStore.getState()),
+      );
       const { data } = await aiChatService.generateJSON(
         {
           ...chainSummaryTitle(

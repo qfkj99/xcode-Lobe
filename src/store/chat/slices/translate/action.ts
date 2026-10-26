@@ -11,6 +11,7 @@ import { type ChatStore } from '@/store/chat/store';
 import { type StoreSetter } from '@/store/types';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/selectors';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 
 /**
  * chat translate
@@ -50,7 +51,10 @@ export class ChatTranslateActionImpl {
     // Only the model of the translation system agent: its other settings
     // (`enabled`, `customPrompt`) are not model parameters and must not reach
     // the provider request.
-    const { model, provider } = systemAgentSelectors.translation(useUserStore.getState());
+    const { model, provider } = await resolveNewApiTopicModel(
+      message.topicId,
+      systemAgentSelectors.translation(useUserStore.getState()),
+    );
     const translationSetting = { model, provider };
 
     // create translate extra

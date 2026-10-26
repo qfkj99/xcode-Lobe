@@ -9,6 +9,11 @@ import { useTranslation } from 'react-i18next';
 
 import { DESKTOP_HEADER_ICON_SMALL_SIZE } from '@/const/layoutTokens';
 import { isDesktop } from '@/const/version';
+import {
+  setNewApiNavigationOpen,
+  useNewApiCompactLayout,
+  useNewApiNavigationOpen,
+} from '@/hooks/useNewApiCompactLayout';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 import { useUserStore } from '@/store/user';
@@ -42,10 +47,13 @@ interface ToggleLeftPanelButtonProps {
 
 const ToggleLeftPanelButton = memo<ToggleLeftPanelButtonProps>(
   ({ title, showActive, icon, size, id = TOGGLE_BUTTON_ID, forceVisible }) => {
-    const [expand, togglePanel] = useGlobalStore((s) => [
+    const [preferredExpand, togglePanel] = useGlobalStore((s) => [
       systemStatusSelectors.showLeftPanel(s),
       s.toggleLeftPanel,
     ]);
+    const compact = useNewApiCompactLayout();
+    const navigationOpen = useNewApiNavigationOpen();
+    const expand = compact ? navigationOpen : preferredExpand;
     const hotkey = useUserStore(settingsSelectors.getHotkeyById(HotkeyEnum.ToggleLeftPanel));
 
     const { t } = useTranslation(['chat', 'hotkey']);
@@ -63,7 +71,7 @@ const ToggleLeftPanelButton = memo<ToggleLeftPanelButtonProps>(
           hotkey,
           placement: 'bottom',
         }}
-        onClick={() => togglePanel()}
+        onClick={() => (compact ? setNewApiNavigationOpen(!navigationOpen) : togglePanel())}
       />
     );
   },

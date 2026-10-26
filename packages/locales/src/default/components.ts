@@ -1,4 +1,10 @@
 export default {
+  'ModelSwitchPanel.newApiGroup': 'Group: {{name}}',
+  'ModelSwitchPanel.newApiSelectGroup': 'Select group',
+  'ModelSwitchPanel.newApiBackToGroups': 'Back to groups',
+  'ModelSwitchPanel.newApiNoGroups': 'No available groups',
+  'ModelSwitchPanel.newApiNoModels': 'No available models in this group',
+  'ModelSwitchPanel.newApiNoMatches': 'No matching models in this group',
   'ArgsInput.addArgument': 'Add Argument',
   'ArgsInput.argumentPlaceholder': 'Argument {{index}}',
   'ArgsInput.enterFirstArgument': 'Enter first argument...',

@@ -107,6 +107,7 @@ const SelectorMenu = memo<SelectorMenuProps>(
   }) => {
     const { t } = useTranslation('chat');
     const [open, setOpen] = useState(false);
+    const [modelPanelOpen, setModelPanelOpen] = useState(false);
 
     const {
       effortKey,
@@ -172,7 +173,7 @@ const SelectorMenu = memo<SelectorMenuProps>(
           <DropdownMenuPositioner hoverTrigger={openOnHover} placement={placement} sideOffset={8}>
             <DropdownMenuPopup className={styles.popup}>
               {canSelectModel ? (
-                <DropdownMenuSubmenuRoot>
+                <DropdownMenuSubmenuRoot onOpenChange={setModelPanelOpen}>
                   <DropdownMenuSubmenuTrigger label={t('modelSelector.model')}>
                     <DropdownMenuItemContent>
                       <DropdownMenuItemLabel>{t('modelSelector.model')}</DropdownMenuItemLabel>
@@ -186,6 +187,7 @@ const SelectorMenu = memo<SelectorMenuProps>(
                     enabledList={enabledList}
                     model={model}
                     notice={modelNotice}
+                    open={open && modelPanelOpen}
                     provider={provider}
                     activeSecondaryText={
                       effortValue ? t(`reasoningEffort.levels.${effortValue}`) : undefined

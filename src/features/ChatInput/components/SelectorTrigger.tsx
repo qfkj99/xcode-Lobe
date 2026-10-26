@@ -70,16 +70,25 @@ interface TriggerProps extends ComponentPropsWithRef<'div'> {
   ariaLabel: string;
   fast?: boolean;
   secondaryText?: string;
+  secondaryMaxWidth?: number;
   text: string;
 }
 
 const SelectorTrigger = memo<TriggerProps>(
-  ({ ariaLabel, className, fast, secondaryText, text, ...rest }) => (
+  ({ ariaLabel, className, fast, secondaryText, secondaryMaxWidth, text, ...rest }) => (
     <div {...rest} aria-label={ariaLabel} className={cx(styles.trigger, className)}>
       {fast && <Icon icon={ZapIcon} size={12} />}
       <span className={styles.label}>{text}</span>
       {secondaryText && (
-        <span data-secondary className={styles.secondary}>
+        <span
+          data-secondary
+          className={styles.secondary}
+          style={
+            secondaryMaxWidth
+              ? { maxWidth: secondaryMaxWidth, overflow: 'hidden', textOverflow: 'ellipsis' }
+              : undefined
+          }
+        >
           {secondaryText}
         </span>
       )}

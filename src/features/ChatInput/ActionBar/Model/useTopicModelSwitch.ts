@@ -4,6 +4,7 @@ import { useChatStore } from '@/store/chat';
 
 import { useTopicModel } from '../../hooks/useEffectiveModel';
 import { useTopicId } from '../../hooks/useTopicId';
+import { useNewApiTopicSelection } from './useNewApiTopicSelection';
 
 interface ModelAndProvider {
   model: string;
@@ -33,6 +34,7 @@ export const useTopicModelSwitch = ({
   selectModel,
 }: UseTopicModelSwitchOptions) => {
   const topicId = useTopicId();
+  const managed = useNewApiTopicSelection(topicId);
   const topicModel = useTopicModel();
   const updateTopicModel = useChatStore((s) => s.updateTopicModel);
   const model = topicModel?.model ?? agentModel;
@@ -42,10 +44,11 @@ export const useTopicModelSwitch = ({
     async (params: ModelAndProvider) => {
       if (!canSelectModel) return;
 
-      if (topicId) await updateTopicModel(topicId, params);
+      if (managed.enabled) await managed.select(params);
+      else if (topicId) await updateTopicModel(topicId, params);
       else await selectModel(params);
     },
-    [canSelectModel, selectModel, topicId, updateTopicModel],
+    [canSelectModel, managed.enabled, managed.select, selectModel, topicId, updateTopicModel],
   );
 
   return { model, provider, switchModel, topicId };

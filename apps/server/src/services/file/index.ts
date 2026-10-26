@@ -9,6 +9,7 @@ import { serverDBEnv } from '@/config/db';
 import { FileModel } from '@/database/models/file';
 import { type FileItem } from '@/database/schemas';
 import { appEnv } from '@/envs/app';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import { TempFileManager } from '@/server/utils/tempFileManager';
 import { isDev } from '@/utils/env';
 
@@ -39,7 +40,7 @@ export class FileService {
     this.db = db;
     this.userId = userId;
     this.fileModel = new FileModel(db, userId, workspaceId);
-    this.impl = createFileServiceModule(db);
+    this.impl = createFileServiceModule(db, userId);
   }
 
   /**
@@ -335,19 +336,27 @@ export class FileService {
    * @returns File content as string
    */
   public async getFileContentByHash(fileHash: string): Promise<string> {
-    const result = await this.fileModel.checkHash(fileHash);
-    if (!result.isExist || !result.url) {
-      throw new TRPCError({ code: 'NOT_FOUND', message: `Global file not found: ${fileHash}` });
-    }
-    return this.getFileContent(result.url);
+    return this.getFileContent(await this.resolveFileHash(fileHash));
   }
 
   public async getFileByteArrayByHash(fileHash: string): Promise<Uint8Array> {
+    return this.getFileByteArray(await this.resolveFileHash(fileHash));
+  }
+
+  private async resolveFileHash(fileHash: string): Promise<string> {
+    if (bridgeEnabled()) {
+      const file = await this.db.query.files.findFirst({
+        where: (files, { and, eq }) =>
+          and(eq(files.fileHash, fileHash), eq(files.userId, this.userId)),
+      });
+      if (!file?.url) throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' });
+      return file.url;
+    }
     const result = await this.fileModel.checkHash(fileHash);
     if (!result.isExist || !result.url) {
       throw new TRPCError({ code: 'NOT_FOUND', message: `Global file not found: ${fileHash}` });
     }
-    return this.getFileByteArray(result.url);
+    return result.url;
   }
 
   /**

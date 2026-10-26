@@ -1,15 +1,21 @@
 'use client';
 
-import { createStaticStyles, cssVar, DraggablePanel } from '@lobehub/ui';
+import { createStaticStyles, cssVar, DraggablePanel, Drawer } from '@lobehub/ui';
 import { type ReactNode } from 'react';
-import { Activity, memo, Suspense, useMemo, useRef } from 'react';
+import { Activity, memo, Suspense, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router';
 
 import NavPanelUpgradeEntry from '@/business/client/features/NavPanelUpgradeEntry';
 import { isDesktop } from '@/const/version';
 import { MAC_VIBRANCY_BACKGROUND } from '@/features/Electron/system/macWindowFullscreen';
 import Footer from '@/features/HomeSidebar/Footer';
 import { USER_DROPDOWN_ICON_ID } from '@/features/NavPanel/constants';
-import { TOGGLE_BUTTON_ID } from '@/features/NavPanel/ToggleLeftPanelButton';
+import ToggleLeftPanelButton, { TOGGLE_BUTTON_ID } from '@/features/NavPanel/ToggleLeftPanelButton';
+import {
+  setNewApiNavigationOpen,
+  useNewApiCompactLayout,
+  useNewApiNavigationOpen,
+} from '@/hooks/useNewApiCompactLayout';
 import { useGlobalStore } from '@/store/global';
 import {
   NAV_PANEL_MAX_WIDTH,
@@ -120,6 +126,15 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent, 
     systemStatusSelectors.isStatusInit(s),
   ]);
   const handleSizeChange = useNavPanelSizeChangeHandler();
+  const compact = useNewApiCompactLayout();
+  const navigationOpen = useNewApiNavigationOpen();
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    if (!compact) setNewApiNavigationOpen(false);
+  }, [compact]);
+  useEffect(() => {
+    setNewApiNavigationOpen(false);
+  }, [pathname, search]);
 
   // Defer DraggablePanel mount until system status hydrates; otherwise defaultSize
   // captures the pre-hydration default and the DOM drifts off NavigationBar's live width.
@@ -137,28 +152,17 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent, 
   );
 
   if (defaultWidthRef.current === 0) {
-    const pendingWidth = systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
+    const pendingWidth = compact
+      ? 0
+      : systemStatusSelectors.leftPanelWidth(useGlobalStore.getState());
     return <div aria-hidden style={{ flexShrink: 0, height: '100%', width: pendingWidth }} />;
   }
 
   const defaultSize = { height: '100%', width: defaultWidthRef.current };
   const isHomeActive = activeContent.key === 'home';
 
-  return (
-    <DraggablePanel
-      className={draggableStyles.panel}
-      classNames={classNames}
-      defaultSize={defaultSize}
-      expand={expand}
-      expandable={false}
-      maxWidth={NAV_PANEL_MAX_WIDTH}
-      minWidth={NAV_PANEL_MIN_WIDTH}
-      placement="left"
-      showBorder={false}
-      style={styles}
-      onExpandChange={togglePanel}
-      onSizeDragging={handleSizeChange}
-    >
+  const content = (
+    <>
       <div className={draggableStyles.inner}>
         {/* Home stays mounted while a route-owned panel is active so its list
             state survives the round trip. Activity keeps the fibers but not the
@@ -185,6 +189,42 @@ export const NavPanelDraggable = memo<NavPanelDraggableProps>(({ activeContent, 
       <Suspense>
         <Footer />
       </Suspense>
+    </>
+  );
+
+  if (compact) {
+    return (
+      <Drawer
+        open={navigationOpen}
+        placement="left"
+        title={<ToggleLeftPanelButton id={null} />}
+        width={280}
+        styles={{
+          bodyContent: { display: 'flex', flexDirection: 'column', height: '100%', padding: 0 },
+        }}
+        onClose={() => setNewApiNavigationOpen(false)}
+      >
+        {content}
+      </Drawer>
+    );
+  }
+
+  return (
+    <DraggablePanel
+      className={draggableStyles.panel}
+      classNames={classNames}
+      defaultSize={defaultSize}
+      expand={expand}
+      expandable={false}
+      maxWidth={NAV_PANEL_MAX_WIDTH}
+      minWidth={NAV_PANEL_MIN_WIDTH}
+      placement="left"
+      showBorder={false}
+      style={styles}
+      onExpandChange={togglePanel}
+      onSizeDragging={handleSizeChange}
+    >
+      {content}
     </DraggablePanel>
   );
 });

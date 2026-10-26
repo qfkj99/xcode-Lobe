@@ -7,12 +7,14 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
 
+import { useNewApiCompactLayout } from '@/hooks/useNewApiCompactLayout';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
 
 const WorkingPanelToggle = memo(() => {
   const { t } = useTranslation('chat');
   const { pathname } = useLocation();
+  const compact = useNewApiCompactLayout();
   const [
     showRightPanel,
     showWorkingOverview,
@@ -31,7 +33,7 @@ const WorkingPanelToggle = memo(() => {
 
   // The popup window has no WorkingSidebar — hide the toggle to avoid a
   // button that does nothing visible.
-  if (pathname.startsWith('/popup')) return null;
+  if (compact || pathname.startsWith('/popup')) return null;
 
   // Defer render until status hydrates — updateSystemStatus is a no-op while
   // !isStatusInit, so clicks here would otherwise be silently dropped.

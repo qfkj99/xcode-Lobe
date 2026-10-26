@@ -5,6 +5,14 @@ import type {
 } from 'model-bank';
 
 import { getHiddenBuiltinModelsForUser, getModelRedirects } from '@/business/server/aiProvider';
+import { getServerDB } from '@/database/core/db-adaptor';
+import {
+  getBridgeModelIds,
+  getBridgeModelIdsFromIdentity,
+  getBridgeRuntimeIdentity,
+} from '@/server/services/newApiBridge/runtime';
+import { bridgeGroupProvider, getBridgeGroups } from '@/server/services/newApiBridge/groups';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import {
   filterEnabledProvidersByModelType,
   filterHiddenBuiltinModels,
@@ -33,6 +41,19 @@ export const getUserScopedAiProviderModelList = async (
   options: AiProviderModelListOptions,
   loadModelList: (options: AiProviderModelListOptions) => Promise<AiProviderModelListItem[]>,
 ): Promise<AiProviderModelListItem[]> => {
+  if (bridgeEnabled()) {
+    if (providerId !== 'newapi' && !/^newapi-group-[a-f0-9]{40}$/.test(providerId)) return [];
+    const allowed = await getBridgeModelIds(await getServerDB(), userId, providerId);
+    const models = await loadModelList({ ...options, limit: undefined, offset: undefined });
+    const visible = models
+      .filter((model) => allowed.has(model.id))
+      .map((model) => ({ ...model, pricing: undefined }));
+    const offset = Math.max(0, options.offset ?? 0);
+    return visible.slice(
+      offset,
+      options.limit === undefined ? undefined : offset + Math.max(0, options.limit),
+    );
+  }
   const hiddenBuiltinModels = await getHiddenBuiltinModelsForUser(userId);
   if (hiddenBuiltinModels === undefined) return [];
 
@@ -85,6 +106,45 @@ export const getUserScopedAiProviderRuntimeState = async (
   loadRuntimeState: () => Promise<AiProviderRuntimeState>,
   options: UserScopedRuntimeStateOptions = {},
 ): Promise<AiProviderRuntimeState> => {
+  if (bridgeEnabled()) {
+    const state = await loadRuntimeState();
+    const identity = await getBridgeRuntimeIdentity(await getServerDB(), userId);
+    const catalog = await getBridgeGroups(identity);
+    const allowed = new Map<string, Set<string>>();
+    const names = new Map<string, string>();
+    allowed.set('newapi', new Set());
+    names.set('newapi', catalog.default_group);
+    for (const group of Object.keys(catalog.groups)) {
+      const id = bridgeGroupProvider(group);
+      const ids = await getBridgeModelIdsFromIdentity(identity, group);
+      allowed.set(id, ids);
+      names.set(id, group);
+      if (group === catalog.default_group) {
+        allowed.set('newapi', ids);
+        names.set('newapi', group);
+      }
+    }
+    const providers = state.enabledAiProviders
+      .filter(({ id }) => allowed.has(id))
+      .map((item) => ({ ...item, name: names.get(item.id)! }));
+    const models = state.enabledAiModels
+      .filter((model) => allowed.get(model.providerId)?.has(model.id))
+      .map((model) => ({ ...model, pricing: undefined }));
+    return {
+      ...state,
+      enabledAiModels: models,
+      enabledAiProviders: providers,
+      enabledChatAiProviders: filterEnabledProvidersByModelType(providers, models, 'chat'),
+      enabledImageAiProviders: filterEnabledProvidersByModelType(providers, models, 'image'),
+      enabledVideoAiProviders: filterEnabledProvidersByModelType(providers, models, 'video'),
+      runtimeConfig: Object.fromEntries(
+        providers.map(({ id }) => [
+          id,
+          { config: {}, fetchOnClient: false, keyVaults: {}, settings: { sdkType: 'openai' } },
+        ]),
+      ),
+    };
+  }
   const [runtimeState, hiddenBuiltinModels, modelRedirects] = await Promise.all([
     loadRuntimeState(),
     getHiddenBuiltinModelsForUser(userId),

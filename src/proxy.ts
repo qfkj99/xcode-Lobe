@@ -1,18 +1,22 @@
 import { defineConfig } from '@/libs/next/proxy/define-config';
+import { frameNewApiResponse, guardNewApiBridge } from '@/libs/next/proxy/newApiBridge';
+import { type NextRequest, NextResponse } from 'next/server';
 
 const { middleware } = defineConfig();
 
 // required to be literal
 export const config = {
   matcher: [
-    // NOTE: `/api`, `/trpc`, `/webapi` are intentionally NOT matched. The
-    // middleware is a no-op for them — `defaultMiddleware` short-circuits the
-    // rewrite half via `backendApiEndpoints`, and they're all public routes, so
-    // the better-auth session lookup is skipped. Auth lives in the route
-    // handlers (`checkAuth`, trpc `protectedProcedure`), which return JSON 401s
-    // rather than the HTML redirect-to-signin. Skipping the matcher avoids a
-    // needless middleware invocation on the hottest backend traffic. (/oidc and
-    // /oauth stay matched below — their middleware pass is still load-bearing.)
+    '/api/:path*',
+    '/trpc/:path*',
+    '/webapi/:path*',
+    '/newapi/:path*',
+    '/f/:path*',
+    '/market/:path*',
+    // Backend paths are matched so the New API integration can validate its
+    // parent session before every protected request. The proxy below skips
+    // page rewriting for them; standalone mode keeps auth in route handlers
+    // and returns JSON errors instead of redirecting API clients to sign-in.
     // include the /
     '/',
     '/acceptance',
@@ -75,4 +79,11 @@ export const config = {
   ],
 };
 
-export default middleware;
+export default async function proxy(request: NextRequest) {
+  const denied = await guardNewApiBridge(request);
+  if (denied) return frameNewApiResponse(denied);
+  if (/^\/(api|trpc|webapi|newapi|f|market)(\/|$)/.test(request.nextUrl.pathname)) {
+    return frameNewApiResponse(NextResponse.next());
+  }
+  return frameNewApiResponse(await middleware(request));
+}

@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useFollowUpActionStore } from '@/store/followUpAction';
 import { useUserStore } from '@/store/user';
 import { systemAgentSelectors } from '@/store/user/slices/settings/selectors/systemAgent';
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 
 import { type ConversationHooks } from '../types';
 
@@ -58,7 +59,7 @@ export const useChatFollowUp = ({
         if (reason === 'stopped') return;
         await useFollowUpActionStore.getState().fetchFor(conversationKey, {
           hint: { kind: 'chat' },
-          modelConfig: { model: globalConfig.model, provider: globalConfig.provider },
+          modelConfig: await resolveNewApiTopicModel(topicId, globalConfig),
           threadId,
           topicId,
         });

@@ -1,3 +1,5 @@
+> **New API 适配版本：** 本仓库包含已适配的完整 LobeHub 源码与独立 Docker 构建工具。请按[独立服务器部署指南](deploy/lobehub/README.md)部署；上游默认镜像不包含本适配。上游版本及自动化策略见[来源说明](UPSTREAM.md)。
+
 <div align="center"><a name="readme-top"></a>
 
 [![][image-banner]][vercel-link]

@@ -1,4 +1,10 @@
 {
+  "ModelSwitchPanel.newApiGroup": "分组：{{name}}",
+  "ModelSwitchPanel.newApiSelectGroup": "选择分组",
+  "ModelSwitchPanel.newApiBackToGroups": "返回分组",
+  "ModelSwitchPanel.newApiNoGroups": "暂无可用分组",
+  "ModelSwitchPanel.newApiNoModels": "此分组暂无可用模型",
+  "ModelSwitchPanel.newApiNoMatches": "此分组没有匹配的模型",
   "ArgsInput.addArgument": "添加参数",
   "ArgsInput.argumentPlaceholder": "参数 {{index}}",
   "ArgsInput.enterFirstArgument": "输入第一个参数…",

@@ -108,6 +108,7 @@ export interface PublicState {
 }
 
 export interface State extends PublicState {
+  newApiModelSelectionPending?: symbol;
   _savedEditorState?: Record<string, any>;
   editor?: IEditor;
   inputCompletionError?: InputCompletionError;

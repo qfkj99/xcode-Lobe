@@ -10,7 +10,9 @@ export const styles = createStaticStyles(({ css, cssVar }) => ({
   detailPopup: css`
     user-select: none;
     overscroll-behavior: contain;
-    width: 400px;
+    box-sizing: border-box;
+    width: min(400px, calc(100vw - 16px), var(--available-width, 400px));
+    min-width: 0;
   `,
   dropdownMenu: css`
     user-select: none;

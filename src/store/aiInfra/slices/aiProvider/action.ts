@@ -23,6 +23,7 @@ import {
 } from '@/libs/replica';
 import { aiProviderService } from '@/services/aiProvider';
 import { type AiInfraStore } from '@/store/aiInfra/store';
+import { getServerConfigStoreState } from '@/store/serverConfig';
 import { type StoreSetter } from '@/store/types';
 import { useUserStore } from '@/store/user';
 import { authSelectors } from '@/store/user/selectors';
@@ -38,6 +39,7 @@ import {
 } from '@/types/aiProvider';
 import { AiProviderSourceEnum } from '@/types/aiProvider';
 import { filterEnabledProvidersByModelType, filterHiddenBuiltinModels } from '@/utils/aiProvider';
+import { isManagedNewApiProvider } from '@/utils/newApiModelPricing';
 import { setNamespace } from '@/utils/storeDebug';
 
 import { initialAIModelState, seedModelReasoningConfigMap } from '../aiModel/initialState';
@@ -112,6 +114,12 @@ const getModelProperty = async <T>(
   model: EnabledAiModel,
   propertyName: keyof AiFullModelCard,
 ): Promise<T | undefined> => {
+  // Provider catalog prices do not represent the managed gateway's user/group billing.
+  if (
+    propertyName === 'pricing' &&
+    isManagedNewApiProvider(model.providerId, getServerConfigStoreState()?.serverConfig.newApiChat)
+  )
+    return undefined;
   const inlineValue = (model as Partial<AiFullModelCard>)[propertyName];
   if (inlineValue !== undefined) return inlineValue as T;
 

@@ -7,6 +7,7 @@ import { type ReactNode, useRef } from 'react';
 import ChatTerminalPanel from '@/features/ChatTerminal';
 import AgentWorkingSidebar from '@/features/Conversation/WorkingSidebar';
 import OverviewSlot from '@/features/Conversation/WorkingSidebar/OverviewSlot';
+import { useNewApiCompactLayout } from '@/hooks/useNewApiCompactLayout';
 import HeaderSlot from '@/routes/(main)/agent/(chat)/_layout/HeaderSlot';
 import Portal from '@/routes/(main)/agent/features/Portal';
 
@@ -32,6 +33,7 @@ const ConversationWorkspace = ({
   // to an open portal — a wide portal otherwise squeezes the conversation out.
   const rowRef = useRef<HTMLDivElement>(null);
   const rowSize = useSize(rowRef);
+  const compact = useNewApiCompactLayout();
 
   return (
     <HeaderSlot.Provider>
@@ -63,7 +65,7 @@ const ConversationWorkspace = ({
               </Flexbox>
             </Flexbox>
             <Portal />
-            <AgentWorkingSidebar availableWidth={rowSize?.width} />
+            <AgentWorkingSidebar availableWidth={compact ? 1 : rowSize?.width} />
           </Flexbox>
           <ChatTerminalPanel />
         </Flexbox>

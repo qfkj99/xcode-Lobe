@@ -7,6 +7,7 @@ import { useAgentShareSupported } from '@/business/client/useAgentShareSupported
 import ModelSwitchPanel from '@/features/ModelSwitchPanel';
 import { useEnabledChatModels } from '@/hooks/useEnabledChatModels';
 import { aiModelSelectors, useAiInfraStore } from '@/store/aiInfra';
+import { useServerConfigStore } from '@/store/serverConfig';
 
 import SelectorTrigger from '../../components/SelectorTrigger';
 import { useAgentId } from '../../hooks/useAgentId';
@@ -19,6 +20,7 @@ import { useTopicModelSwitch } from './useTopicModelSwitch';
 
 const ModelSwitch = memo(() => {
   const { t } = useTranslation(['chat', 'agent']);
+  const managed = useServerConfigStore((s) => s.serverConfig.newApiChat);
   const { dropdownPlacement } = useActionBarContext();
   const agentId = useAgentId();
   const selection = useAgentModelSelection(agentId);
@@ -47,6 +49,9 @@ const ModelSwitch = memo(() => {
   ) : undefined;
   const enabledModel = useAiInfraStore(aiModelSelectors.getEnabledModelById(model, provider));
   const displayName = enabledModel?.displayName || model;
+  const groupName = useAiInfraStore(
+    (s) => s.enabledAiProviders?.find((item) => item.id === provider)?.name,
+  );
   const lockTooltip = useModelLockTooltip(displayName, selectionLockReason);
   // Reasoning effort rides along with the model trigger instead of claiming a
   // second action slot. Like the model, it pins to the composer's topic when
@@ -61,13 +66,19 @@ const ModelSwitch = memo(() => {
   const effortLabel = effort.effortValue
     ? t(`reasoningEffort.levels.${effort.effortValue}`)
     : undefined;
-  const triggerText = effortLabel ? `${displayName} ${effortLabel}` : displayName;
+  const groupLabel = managed
+    ? t('ModelSwitchPanel.newApiGroup', { ns: 'components', name: groupName || provider })
+    : undefined;
+  const secondaryText = [groupLabel, effortLabel].filter(Boolean).join(' / ') || undefined;
+  const triggerText = secondaryText ? `${displayName} ${secondaryText}` : displayName;
 
   const trigger = (
     <SelectorTrigger
       aria-disabled={!interactive}
       ariaLabel={triggerText}
-      secondaryText={effortLabel}
+      secondaryText={secondaryText}
+      secondaryMaxWidth={managed ? 140 : undefined}
+      title={triggerText}
       text={displayName}
       {...(interactive ? {} : { style: { cursor: 'default' } })}
     />
