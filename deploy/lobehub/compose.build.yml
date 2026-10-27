@@ -1,0 +1,9 @@
+services:
+  lobe:
+    image: ${LOBE_IMAGE:-xcode-lobe:local}
+    pull_policy: build
+    build:
+      context: ../..
+      dockerfile: deploy/lobehub/Dockerfile
+      additional_contexts:
+        integration: .

@@ -8,10 +8,102 @@ LobeHub，登录身份、可用分组和模型、额度与计费由已接入的 
 New API 服务本身必须先部署包含 `/api/lobe/*` 和网页聊天设置页的版本。
 官方原版 LobeHub 镜像没有这些适配，不能替代本仓库构建的镜像。
 
+## 推荐：宝塔终端中用 Compose 本地构建
+
+这条流程只需要服务器已有 Git、Docker Engine、Buildx 和 Compose 2.20.0 或更新版本，
+支持 `include`、`additional_contexts`，**不需要安装宿主机 Node.js、Bun 或 pnpm**。
+初始化使用固定版本的 Node 24 容器，应用和依赖也在 Docker 内构建。
+先阅读下方服务器与域名要求，并按“配置 HTTPS 反向代理”准备聊天、文件两个域名。
+
+以下命令适用于包含根 `compose.yml`、`deploy/lobehub/compose.setup.yml` 和
+`deploy/lobehub/Dockerfile` 的代码版本。若拉取到的版本缺少这些文件，先确认该版本是否已发布，
+不要用上游根 Dockerfile 代替。这里的部署步骤本身不代表服务器完整构建已经通过。
+
+### 首次部署
+
+在宝塔终端进入源码父目录：
+
+```sh
+cd /www/wwwroot
+```
+
+仅当目标目录尚不存在时克隆：
+
+```sh
+sudo git clone https://github.com/qfkj99/xcode-Lobe.git xcode-Lobe
+```
+
+进入仓库；如果已经在这个目录拉取过源码，直接从这里继续，不要重复克隆或删除目录：
+
+```sh
+cd /www/wwwroot/xcode-Lobe
+```
+
+**源码放在 `/www/wwwroot/` 下不等于创建静态网站。不要把这个仓库目录设为任何公开网站的
+静态根目录，也不要允许 Nginx 直接读取仓库文件。** 根 `.env` 含数据库密码和桥接密钥；
+聊天和文件域名必须使用下文的反向代理。
+
+仅对没有既有环境配置的新部署初始化：
+
+```sh
+sudo docker compose -f deploy/lobehub/compose.setup.yml run --rm setup
+```
+
+此命令在仓库根创建权限为 `0600` 的 `.env`，为桥接、认证、数据库和对象存储分别生成
+独立随机密钥。已有 `.env` 时会拒绝覆盖；不要为了重新执行而删除已有文件。
+
+在宝塔文件管理器中编辑 `/www/wwwroot/xcode-Lobe/.env`，首次部署只改以下三个地址，
+都填 HTTPS 源地址，不带路径、查询串或片段：
+
+| 字段 | 示例 | 用途 |
+| --- | --- | --- |
+| `LOBE_PUBLIC_URL` | `https://chat.example.com` | 内嵌聊天域名 |
+| `NEW_API_PUBLIC_URL` | `https://api.example.com` | 用户登录的 New API 控制台域名 |
+| `S3_ENDPOINT` | `https://files.example.com` | 浏览器上传附件及签名下载域名，不是管理后台 |
+
+`NEW_API_INTERNAL_URL` 默认沿用 `NEW_API_PUBLIC_URL`，通常不用额外填写。网站与聊天
+应使用同站点下的 HTTPS 子域名；不同主域名不符合当前 iframe Cookie 设计。保留自动生成
+的项目名、镜像名和所有密钥，不要把 `.env` 上传到 Git、公开日志或截图中。
+
+仍在仓库根目录，构建并启动：
+
+```sh
+sudo docker compose up -d --build
+```
+
+查看所有服务，包括已经正常退出的一次性初始化任务：
+
+```sh
+sudo docker compose ps -a
+```
+
+根 `compose.yml` 组合运行配置与 `deploy/lobehub/compose.build.yml`，直接构建
+`deploy/lobehub/Dockerfile`，保留冻结依赖和 `integration` 构建上下文。
+首次构建需要联网下载镜像和依赖，`up -d` 返回后也仍需检查健康状态。
+`storage-init` 以退出码 0 结束是正常的，Lobe、PostgreSQL、Redis 和 RustFS 应正常运行。
+
+完成反向代理后，按下文“在 New API 控制台启用”填写聊天地址，并把根 `.env` 中的
+`NEW_API_CHAT_BRIDGE_SECRET` 填入 New API 网页聊天设置。两端必须相等。
+不需要为 Lobe 单独注册用户或填写供应商 API Key。
+
+### 已有部署不要重新初始化
+
+已有环境文件、数据卷和密钥都必须保留；继续使用原来的 `COMPOSE_PROJECT_NAME`，
+否则可能新建另一套空卷，看起来像历史数据丢失。不要重新生成密码，不要执行
+`docker compose down -v`，也不要因为更换部署方式而删除以前创建的外部运行目录。
+
+如果原来使用外部 `lobehub.env`，继续使用原编排方式是可行的。切换根 Compose 之前，
+应先备份、核对原项目名、镜像和数据卷，再通过宝塔将原配置原样保留为根 `.env`，
+不要运行上面的初始化命令，也不要另起一个同端口的新项目。
+
+下面第 2 至 4 节及第 6 节保留为**高级手动构建流程**，适合维护外置运行目录和单独管理镜像
+的部署者。推荐流程无需执行这些 Node 命令；HTTPS、New API 设置、验证和持久化要求则两种流程通用。
+
 ## 1. 准备服务器和域名
 
-需要 Linux、Git、Node.js 24，以及支持 BuildKit 命名构建上下文和
+需要 Linux、Git，以及支持 BuildKit 命名构建上下文、Compose `include` 和
 `docker compose up --wait` 的 Docker Engine、Buildx 与 Compose V2。
+推荐流程不需要宿主机 Node.js；仅下方高级手动构建流程需要 Node.js 24。
 已验证的镜像平台是 `linux/amd64`，其他架构需要另外构建与验证。
 
 资源建议是部署预算，不是压测得出的最低规格：
@@ -41,7 +133,9 @@ New API 服务本身必须先部署包含 `/api/lobe/*` 和网页聊天设置页
 服务器只需对外开放反向代理的 80/443。Compose 中 Lobe 的 3210 和对象存储的
 9000 只绑定 `127.0.0.1`；PostgreSQL 和 Redis 不发布宿主机端口。
 
-## 2. 克隆代码并初始化运行目录
+## 2. 高级手动流程：外置运行目录
+
+已使用顶部推荐流程的部署无需执行本节至第 4 节，也无需另外创建运行目录。
 
 以下示例以有权管理 `/srv` 和 Docker 的部署账户执行。先确认所用账户能执行
 `docker info`，以及 `/srv/xcode` 存在且可写。
@@ -61,7 +155,7 @@ Dockerfile，不能提交到 Git，也不能作为 Docker 构建上下文。
 `integrations/lobehub/prepare-lobehub.mjs`：该工具是给原始上游 checkout 打补丁，
 要求 HEAD 恰好等于上游基线，会拒绝本仓库自己的提交。
 
-## 3. 生成并填写环境配置
+## 3. 高级手动流程：环境配置
 
 完整字段示例见 [lobehub.env.example](lobehub.env.example)。下面的命令为首次部署
 生成独立随机密钥，只写入权限为 `0600` 的新文件，不在终端打印密钥；文件已存在时拒绝覆盖。
@@ -108,7 +202,7 @@ NODE
 不要为该集成设置 OpenAI、Claude 等供应商 API Key。用户的模型请求经 New API
 受控路由，不从 Lobe 使用个人或统一供应商密钥绕开计费。
 
-## 4. 构建固定依赖的镜像
+## 4. 高级手动流程：单独构建镜像
 
 ```sh
 cd /srv/xcode/xcode-Lobe
@@ -124,7 +218,8 @@ docker build \
 如果换了终端，先重新设置与环境文件 `LOBE_IMAGE` 相同的 `LOBE_BUILD_TAG`。
 首次构建需要访问镜像仓库和依赖源，耗时取决于网络和机器性能。
 
-这里必须用生成的 Dockerfile 和 `--build-context integration=deploy/lobehub`。
+本节的手动流程必须用生成的 Dockerfile 和 `--build-context integration=deploy/lobehub`；
+顶部推荐流程已经在 Compose 中指定等效的固定构建入口，不需要再次生成。
 只运行仓库根目录原始 `docker build .` 不会应用已验证的构建修复：上游默认关闭
 root lockfile，原 Dockerfile 还有浮动依赖安装。本目录固定了 Node/BusyBox 镜像、
 Corepack `0.36.0`、根 pnpm `12.4.1`、运行时 pnpm `12.14.0`，并校验锁文件哈希。
@@ -206,7 +301,10 @@ server {
 `lobehub` bucket，并只允许聊天源的上传/读取 CORS。反代的 `100m` 是传输上限示例，
 不改变模型请求中私有多媒体的 20 MiB 总内联限制。
 
-## 6. 启动独立服务
+## 6. 高级手动流程：启动已构建镜像
+
+已通过根 `sudo docker compose up -d --build` 启动的部署不要再执行本节，
+避免混用不同配置或项目名。
 
 ```sh
 cd /srv/xcode/xcode-Lobe
@@ -220,7 +318,8 @@ docker compose --env-file /srv/xcode/lobe-runtime/lobehub.env \
   -f deploy/lobehub/compose.yml ps
 ```
 
-这里仅使用 `compose.yml`。不需要原开发机器的 Docker 网络、MySQL、Redis或容器名，
+本节仅使用 `deploy/lobehub/compose.yml`，而不是根目录的构建入口。
+不需要原开发机器的 Docker 网络、MySQL、Redis或容器名，
 也不需要 New API 的本地容器捕获、替换、恢复脚本。
 
 服务包含 Lobe、PostgreSQL/pgvector、Redis、RustFS 和一次性 `storage-init`。
@@ -277,16 +376,23 @@ curl -sS -D - -o /dev/null https://chat.example.com/newapi/bridge
 备份应包含 PostgreSQL、对象存储、Redis及私有环境文件，并保存所用代码提交和镜像 ID。
 数据备份需要一致性策略；不要把运行中数据库目录的随手复制当成已验证备份。
 
-更新前备份；拉取并确认需要部署的提交，按第 4 节重新构建一个新的提交号镜像标签，
-只修改私有环境文件中的 `LOBE_IMAGE`，然后运行：
+更新前备份并保留旧镜像，拉取并确认需要部署的提交。顶部推荐流程继续在
+`/www/wwwroot/xcode-Lobe` 使用原 `.env`，执行 `sudo docker compose up -d --build`，
+再用 `sudo docker compose ps -a` 检查；不要再次初始化配置。若需要保留可区分的
+回退镜像，可先将 `.env` 的 `LOBE_IMAGE` 改为新的唯一版本标签再构建。
+
+高级手动流程则按第 4 节重新构建一个新的提交号镜像标签，
+只修改原私有环境文件中的 `LOBE_IMAGE`，然后运行：
 
 ```sh
 docker compose --env-file /srv/xcode/lobe-runtime/lobehub.env \
   -f deploy/lobehub/compose.yml up -d --no-deps --force-recreate --wait lobe
 ```
 
-保留旧镜像。只有确认数据库迁移向后兼容，才可把 `LOBE_IMAGE` 改回旧标签并用同一命令回退；
-否则需要按备份恢复数据库和对象存储。不要在普通镜像回退时删除现有卷。
+保留旧镜像。只有确认数据库迁移向后兼容，才可把 `LOBE_IMAGE` 改回旧标签，
+通过上面的高级手动运行入口启动旧镜像；根 Compose 设置了自动构建，不能将
+`up -d --build` 当作旧镜像回退命令。切换入口仍须提供原环境文件并保持同一项目名。
+数据库迁移不兼容时，需要按备份恢复数据库和对象存储，不要在普通镜像回退时删除现有卷。
 
 修改域名或对象存储凭据时，还要检查反代、两端地址和 bucket CORS；不能只重建 Lobe。
 轮换桥接密钥必须同时更新 New API 网页聊天设置和 Lobe 环境文件，再重建 Lobe 服务，

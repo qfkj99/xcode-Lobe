@@ -1,0 +1,6 @@
+name: ${COMPOSE_PROJECT_NAME:-xcode-lobe}
+
+include:
+  - path:
+      - ./deploy/lobehub/compose.yml
+      - ./deploy/lobehub/compose.build.yml
