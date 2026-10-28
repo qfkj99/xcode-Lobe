@@ -10,11 +10,12 @@ New API 服务本身必须先部署包含 `/api/lobe/*` 和网页聊天设置页
 
 ## 推荐：宝塔使用 GitHub Actions 发布的镜像
 
-完整的拉取镜像配置是本目录的 `compose.image.yml`，没有 `include`、`build` 或宿主机脚本挂载。
+本次发布可直接使用本目录的 `compose.baota.yml`，镜像已固定到通过 Actions 发布的摘要。
+`compose.image.yml` 则跟随 `latest` 更新。两者均为完整配置，没有 `include`、`build` 或宿主机脚本挂载。
 已有部署可将其完整内容粘贴到宝塔原编排的 YAML 输入框，替换根 `compose.yml`，
 继续使用原 `.env`，保留 `COMPOSE_PROJECT_NAME=xcode-lobe` 和全部密码、密钥。
 该配置直接指定 GHCR 镜像，不受原 `LOBE_IMAGE=xcode-lobe:local` 影响。
-文件中的 `latest` 用于跟随更新；需要固定版本时使用发布记录里的 `sha-<完整提交号>` 或镜像摘要。
+自选版本时使用发布记录里的 `sha-<完整提交号>` 或镜像摘要。
 当前发布目标为 `linux/amd64`。
 
 终端更新方式（在原 `.env` 所在目录，先将上述文件保存为根 `compose.yml`）：
