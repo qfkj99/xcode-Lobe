@@ -1,4 +1,4 @@
-import { Alert, Tooltip } from '@lobehub/ui';
+import { Alert, Button, Flexbox, Tooltip } from '@lobehub/ui';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -32,6 +32,7 @@ const ModelSwitch = memo(() => {
     provider,
     switchModel: handleModelChange,
     topicId,
+    recovery,
   } = useTopicModelSwitch(selection);
   const { isShared } = useAgentShareSupported(agentId);
   const chatModels = useEnabledChatModels();
@@ -39,7 +40,19 @@ const ModelSwitch = memo(() => {
     !topicId && isShared && AGENT_SHARE_ALLOWED_PROVIDERS
       ? chatModels.filter((item) => AGENT_SHARE_ALLOWED_PROVIDERS?.includes(item.id))
       : undefined;
-  const modelNotice = enabledList ? (
+  const modelNotice = recovery.error ? (
+    <Flexbox gap={8} role="status">
+      {t(
+        recovery.noModels
+          ? 'ModelSwitchPanel.newApiNoChatModels'
+          : 'ModelSwitchPanel.newApiLoadFailed',
+        { ns: 'components' },
+      )}
+      <Button onClick={recovery.retry}>
+        {t('ModelSwitchPanel.newApiRetry', { ns: 'components' })}
+      </Button>
+    </Flexbox>
+  ) : enabledList ? (
     <Alert
       showIcon
       description={t('share.settings.modelRestriction.description', { ns: 'agent' })}
@@ -69,7 +82,11 @@ const ModelSwitch = memo(() => {
   const groupLabel = managed
     ? t('ModelSwitchPanel.newApiGroup', { ns: 'components', name: groupName || provider })
     : undefined;
-  const secondaryText = [groupLabel, effortLabel].filter(Boolean).join(' / ') || undefined;
+  const secondaryText = recovery.blocked
+    ? t(recovery.error ? 'ModelSwitchPanel.newApiLoadFailed' : 'ModelSwitchPanel.newApiLoading', {
+        ns: 'components',
+      })
+    : [groupLabel, effortLabel].filter(Boolean).join(' / ') || undefined;
   const triggerText = secondaryText ? `${displayName} ${secondaryText}` : displayName;
 
   const trigger = (

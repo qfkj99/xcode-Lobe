@@ -24,6 +24,12 @@ import { getServerGlobalConfig } from '@/server/globalConfig';
 import { initModelRuntimeForRequest } from '@/server/modules/AgentRuntime/llmRelay/oneShot';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { getUserScopedAiProviderRuntimeState } from '@/server/services/aiProviderAccess';
+import { bridgeStoredModels, getBridgeGroupCatalog } from '@/server/services/newApiBridge/catalog';
+import { getBridgeGroups, resolveBridgeGroup } from '@/server/services/newApiBridge/groups';
+import { getBridgeRuntimeIdentity } from '@/server/services/newApiBridge/runtime';
+import { resolveBridgeSelection } from '@/server/services/newApiBridge/resolveSelection';
+import { recoverBridgeTopic } from '@/server/services/newApiBridge/recoverTopic';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
 import { type AiProviderDetailItem, type AiProviderRuntimeState } from '@/types/aiProvider';
 import {
   CreateAiProviderSchema,
@@ -73,6 +79,48 @@ const resolveProviderBindingAgentTypes = (
   );
 
 export const aiProviderRouter = router({
+  recoverNewApiTopic: aiProviderProcedure
+    .input(
+      z.object({
+        topicId: z.string(),
+        model: z.string().max(512),
+        provider: z.string().max(100),
+        expectedModel: z.string().nullable(),
+        expectedProvider: z.string().nullable(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (!bridgeEnabled() || ctx.workspaceId) throw new TRPCError({ code: 'FORBIDDEN' });
+      return recoverBridgeTopic(
+        ctx.serverDB,
+        await getBridgeRuntimeIdentity(ctx.serverDB, ctx.userId),
+        input,
+      );
+    }),
+  getNewApiGroupCatalog: aiProviderProcedure
+    .input(z.object({ provider: z.string().max(100) }))
+    .query(async ({ input, ctx }) => {
+      if (!bridgeEnabled()) throw new TRPCError({ code: 'NOT_FOUND' });
+      const identity = await getBridgeRuntimeIdentity(ctx.serverDB, ctx.userId);
+      const catalog = await getBridgeGroups(identity);
+      const group = resolveBridgeGroup(input.provider, catalog) ?? catalog.default_group;
+      return {
+        provider: input.provider,
+        name: group,
+        models: bridgeStoredModels(await getBridgeGroupCatalog(identity, group)),
+      };
+    }),
+
+  resolveNewApiSelection: aiProviderProcedure
+    .input(z.object({ model: z.string().max(512), provider: z.string().max(100) }))
+    .query(async ({ input, ctx }) => {
+      if (!bridgeEnabled()) throw new TRPCError({ code: 'NOT_FOUND' });
+      return resolveBridgeSelection(
+        await getBridgeRuntimeIdentity(ctx.serverDB, ctx.userId),
+        input,
+      );
+    }),
+
   checkProviderConnectivity: aiProviderProcedure
     .use(withScopedPermission('ai_provider:update'))
     .input(

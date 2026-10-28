@@ -1,4 +1,4 @@
-// Disable the auto sort key eslint rule to make the code more logic and readable
+import { resolveNewApiTopicModel } from '@/utils/newApiTopicModel';
 import {
   type AgentRuntimeContext,
   type AgentState,
@@ -206,12 +206,9 @@ export class StreamingExecutorActionImpl {
     // 1. `modelOverride` — forced by the spawn site (see runClientSubAgent); not
     //    re-derived here because `isSubAgent` is also set for isolated group
     //    members which must keep their own model, so it can't gate on its own.
-    // 2. Topic-scoped model — a topic snapshots the model it was created with and
+    // 2. Topic-scoped model — a topic snapshots its model and
     //    remembers switches made while active (top-level `topics.model`/`provider`
-    //    columns, read via `getTopicModelById`), overriding the agent default so
-    //    the whole model→topic chain (tools, context window, generation) uses it.
-    // resolveAgentConfig returns an immer-frozen config, so build a new object
-    // rather than mutating in place.
+    //    columns) so tools, context and generation share the selected model.
     const topicModel = topicId ? topicSelectors.getTopicModelById(topicId)(this.#get()) : undefined;
     const modelResolution = modelOverride ?? topicModel;
     const agentConfig: ResolvedAgentConfig =
@@ -664,20 +661,22 @@ export class StreamingExecutorActionImpl {
       messageService.getToolResultPayloads,
     );
 
-    // Decide tool / function-calling capability from real data, not a guess.
-    // The enabled-model list hydrates asynchronously (auth session → aiProvider
-    // runtime-state SWR); until it's ready `isCanUseFC` optimistically assumes
-    // tool use so we don't drop tools for a capable model. But this is the
-    // outbound path: `createAgentToolsEngine` below bakes the tool set into the
-    // payload and the `/webapi/chat/[provider]` route forwards it to the provider
-    // without rechecking capability. Wait (bounded) for the list so a fast first
-    // send after reload never attaches tools to a model that can't use them.
+    // Resolve authority before building tools; a timeout must block sending.
+    const selectionConfig = resolveAgentConfig({
+      agentId: subAgentId || agentId || '',
+      disableTools,
+      groupId,
+      isSubAgent,
+      scope,
+    }).agentConfig;
+    const modelOverride = await resolveNewApiTopicModel(
+      params.modelOverride ? null : topicId,
+      params.modelOverride ??
+        (topicId ? topicSelectors.getTopicModelById(topicId)(this.#get()) : undefined) ??
+        selectionConfig!,
+    );
     await getAiInfraStoreState().ensureAiProviderRuntimeStateReady();
 
-    // ===========================================
-    // Step 1: Create Agent State (resolves config once)
-    // ===========================================
-    // agentConfig already has isSubAgent filtering applied and is passed to callLLM executor
     const {
       state: initialAgentState,
       context: initialAgentContext,
@@ -695,7 +694,9 @@ export class StreamingExecutorActionImpl {
       operationId,
       subAgentId, // Pass subAgentId for agent config retrieval (behavior depends on scope)
       isSubAgent, // Pass isSubAgent to filter out lobe-agent tool in sub-agent context
-      modelOverride: params.modelOverride,
+      modelOverride: modelOverride?.provider
+        ? { model: modelOverride.model, provider: modelOverride.provider }
+        : undefined,
       chatConfigOverride: params.chatConfigOverride,
     });
 
@@ -707,7 +708,6 @@ export class StreamingExecutorActionImpl {
       };
     }
 
-    // Use model/provider from resolved agentConfig
     const { agentConfig: agentConfigData } = agentConfig;
     const model = agentConfigData.model;
     const provider = agentConfigData.provider;

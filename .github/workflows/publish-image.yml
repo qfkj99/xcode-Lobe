@@ -1,0 +1,67 @@
+name: Publish Xcode Lobe image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Verify frozen Docker recipe and regression tests
+        env:
+          BRIDGE_TEST_DEPENDENCIES: ${{ runner.temp }}/bridge-tests
+        run: |
+          node deploy/lobehub/sync-compose-build.mjs --check
+          npm install --prefix "$BRIDGE_TEST_DEPENDENCIES" --no-audit --no-fund --package-lock=false @electric-sql/pglite@0.3.14 drizzle-orm@0.44.7 p-map@7.0.3 happy-dom@20.8.4 @testing-library/react@16.3.0 react@19.2.0 react-dom@19.2.0
+          node --test .github/scripts/newapi-bridge-regression.test.mjs .github/scripts/newapi-composer-regression.test.mjs .github/scripts/newapi-message-selection-regression.test.mjs
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android
+          df -h /
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: deploy/lobehub/Dockerfile
+          build-contexts: |
+            integration=./deploy/lobehub
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/qfkj99/xcode-lobe:sha-${{ github.sha }}
+            ghcr.io/qfkj99/xcode-lobe:latest
+          labels: |
+            org.opencontainers.image.source=https://github.com/qfkj99/xcode-Lobe
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Record published image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "Published: ghcr.io/qfkj99/xcode-lobe@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          echo "Platform: linux/amd64" >> "$GITHUB_STEP_SUMMARY"

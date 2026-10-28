@@ -1,9 +1,10 @@
-import { cssVar, DropdownMenuItem, Flexbox, Icon, SearchBar } from '@lobehub/ui';
+import { Button, cssVar, DropdownMenuItem, Flexbox, Icon, SearchBar } from '@lobehub/ui';
 import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
 import { type ComponentProps, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAiInfraStore } from '@/store/aiInfra';
+import { newApiCatalogActions, useNewApiCatalogStore } from '@/store/newApiCatalog';
 
 import { useModelAndProvider } from '../hooks/useModelAndProvider';
 import { useNewApiGroupNavigation } from '../hooks/useNewApiGroupNavigation';
@@ -34,6 +35,19 @@ export const NewApiGroupPanel = ({
     selectedGroup,
     setSearchKeyword,
   } = useNewApiGroupNavigation(enabledList, currentProvider, legacyGroupName);
+  const groupSync = newApiCatalogActions.useFetchGroup(selectedGroup?.id);
+  const loadedGroup = useNewApiCatalogStore((s) =>
+    selectedGroup ? s.groups[selectedGroup.id] : undefined,
+  );
+  const resolvedGroup = loadedGroup ?? selectedGroup;
+  const query = searchKeyword.trim().toLocaleLowerCase();
+  const loadedMatches =
+    resolvedGroup?.children.filter(
+      (m) =>
+        !query ||
+        m.id.toLocaleLowerCase().includes(query) ||
+        m.displayName?.toLocaleLowerCase().includes(query),
+    ) ?? matchingModels;
   const groupListRef = useRef<HTMLDivElement>(null);
   const modelListRef = useRef<HTMLDivElement>(null);
 
@@ -120,25 +134,53 @@ export const NewApiGroupPanel = ({
         </Flexbox>
       </Flexbox>
       <Flexbox flex={1} ref={modelListRef} style={{ minHeight: 0 }}>
-        {matchingModels.length === 0 ? (
+        {groupSync.error && !loadedGroup ? (
+          <Flexbox gap={8} padding={16} role="status">
+            {t('ModelSwitchPanel.newApiLoadFailed')}
+            <Button
+              loading={groupSync.isValidating}
+              onClick={() => {
+                void groupSync.revalidate();
+              }}
+            >
+              {t('ModelSwitchPanel.newApiRetry')}
+            </Button>
+          </Flexbox>
+        ) : !loadedGroup ? (
+          <Flexbox padding={16} role="status">
+            {t('ModelSwitchPanel.newApiLoading')}
+          </Flexbox>
+        ) : loadedMatches.length === 0 ? (
           <Flexbox padding={16} role="status" style={{ color: cssVar.colorTextSecondary }}>
             {t(
-              selectedGroup.children.length === 0
+              resolvedGroup?.children.length === 0
                 ? 'ModelSwitchPanel.newApiNoModels'
                 : 'ModelSwitchPanel.newApiNoMatches',
             )}
           </Flexbox>
         ) : (
-          <List
-            {...listProps}
-            enabledList={[{ ...selectedGroup, children: matchingModels }]}
-            groupMode="byProvider"
-            key={selectedGroup.id}
-            model={model}
-            provider={provider}
-            searchKeyword=""
-            onOpenChange={onOpenChange}
-          />
+          <Flexbox flex={1} style={{ minHeight: 0 }}>
+            {groupSync.error && (
+              <Button
+                loading={groupSync.isValidating}
+                onClick={() => {
+                  void groupSync.revalidate();
+                }}
+              >
+                {t('ModelSwitchPanel.newApiLoadFailed')} {t('ModelSwitchPanel.newApiRetry')}
+              </Button>
+            )}
+            <List
+              {...listProps}
+              enabledList={[{ ...loadedGroup, children: loadedMatches }]}
+              groupMode="byProvider"
+              key={selectedGroup.id}
+              model={model}
+              provider={provider}
+              searchKeyword=""
+              onOpenChange={onOpenChange}
+            />
+          </Flexbox>
         )}
       </Flexbox>
     </>

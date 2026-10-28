@@ -1,4 +1,9 @@
 {
+  "ModelSwitchPanel.newApiNoChatModels": "当前账号没有可用的聊天模型，请联系站点管理员，或在权限恢复后重试。",
+  "ModelSwitchPanel.newApiLoading": "正在加载可用模型…",
+  "ModelSwitchPanel.newApiLoadFailed": "模型准备未完成，请检查网络后重试。",
+  "ModelSwitchPanel.newApiRetry": "重试",
+  "ModelSwitchPanel.newApiAutoSwitched": "原模型已不可用，已切换到 {{group}} 分组的 {{model}}，后续按新选择计费。",
   "ModelSwitchPanel.newApiGroup": "分组：{{name}}",
   "ModelSwitchPanel.newApiSelectGroup": "选择分组",
   "ModelSwitchPanel.newApiBackToGroups": "返回分组",

@@ -5,6 +5,7 @@ import type { BetterAuthPlugin } from 'better-auth/types';
 import { z } from 'zod';
 
 import { bootstrapBridgeUser } from '@/server/services/newApiBridge/bootstrap';
+import { startBridgeTiming } from '@/server/services/newApiBridge/timing';
 import {
   BRIDGE_COOKIE,
   FLOW_COOKIE,
@@ -26,6 +27,7 @@ export const newApiBridge = (): BetterAuthPlugin => ({
         requireHeaders: true,
       },
       async (ctx) => {
+        const timing = startBridgeTiming();
         const config = bridgeConfig();
         if (ctx.headers?.get('origin') !== config.appURL.origin) {
           throw new APIError('FORBIDDEN', { message: 'Invalid bridge origin' });
@@ -49,6 +51,7 @@ export const newApiBridge = (): BetterAuthPlugin => ({
           throw new APIError('UNAUTHORIZED', { message: 'Invalid bridge identity' });
         }
         const adapter = ctx.context.internalAdapter;
+        timing.mark('ticketExchange');
         const email = subjectEmail(launch.sub);
         const providerId = 'newapi-bridge';
         const findBoundUser = async () => {
@@ -74,7 +77,9 @@ export const newApiBridge = (): BetterAuthPlugin => ({
         if (!user || (user as { banned?: boolean }).banned)
           throw new APIError('FORBIDDEN', { message: 'Account unavailable' });
         const identity = { ...launch, userId: user.id };
+        timing.mark('account');
         await bootstrapBridgeUser(serverDB, identity, isNew);
+        timing.mark('bootstrap');
         const session = await adapter.createSession(
           user.id,
           false,
@@ -92,7 +97,8 @@ export const newApiBridge = (): BetterAuthPlugin => ({
           bridgeCookieOptions(Math.max(0, launch.expires_at - Math.floor(Date.now() / 1000))),
         );
         ctx.setCookie(FLOW_COOKIE, '', bridgeCookieOptions(0));
-        return ctx.json({ success: true });
+        timing.mark('session');
+        return ctx.json({ success: true, timing: timing.finish() });
       },
     ),
   },

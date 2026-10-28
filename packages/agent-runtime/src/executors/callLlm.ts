@@ -315,6 +315,8 @@ export const callLlm =
       try {
         await transports.messages.update(existingAssistantMessageId, {
           metadata: { operationId: operation.operationId },
+          model,
+          provider,
         });
       } catch (error) {
         console.warn('[call_llm] Failed to stamp operation id provenance:', error);

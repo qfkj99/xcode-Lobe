@@ -630,7 +630,11 @@ const VoiceMessage = memo(() => {
 
   const commitRecording = useCallback(
     async (captured?: VoiceMessageRecording) => {
-      if (storeApi.getState().newApiModelSelectionPending) return;
+      if (
+        storeApi.getState().newApiModelSelectionPending ||
+        storeApi.getState().newApiModelUnavailable
+      )
+        return;
       if (!canUseVoiceMessageRef.current || sendCommittedRef.current) return;
       sendCommittedRef.current = true;
 

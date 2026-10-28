@@ -1,4 +1,5 @@
 export * from './agent';
+export * from './newApiBridge';
 export * from './agentAccount';
 export * from './agentExecution';
 export * from './agentGroup';

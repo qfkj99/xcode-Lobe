@@ -14,6 +14,8 @@ export const bridgePage = () => {
 const parentOrigin = ${json(parentOrigin)};
 const challenge = ${json(challenge)};
 let completing = false;
+const started = performance.now();
+try { sessionStorage.setItem('newapi:entryStarted', String(performance.timeOrigin + started)); } catch {}
 const send = (type) => parent.postMessage({type, challenge}, parentOrigin);
 addEventListener('message', async (event) => {
   if (event.origin !== parentOrigin || event.source !== parent || event.data?.type !== 'newapi:launch' || completing) return;
@@ -22,6 +24,8 @@ addEventListener('message', async (event) => {
   try {
     const response = await fetch('/newapi/bridge/complete', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ticket:event.data.ticket})});
     if (!response.ok) throw new Error('Login failed');
+    const result = await response.json();
+    performance.measure('newapi:login', {start:started, end:performance.now(), detail:result.timing});
     send('newapi:authenticated');
     location.replace('/agent/inbox');
   } catch {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PortalViewType } from '@/store/chat/slices/portal/initialState';
 
 interface RenderHomeOptions {
+  newApiChat?: boolean;
   hiddenWidgets?: string[];
   isLogin?: boolean;
   portalViewType?: PortalViewType;
@@ -40,6 +41,7 @@ function translate() {
 }
 
 const renderHome = async ({
+  newApiChat = false,
   hiddenWidgets = [],
   isLogin = true,
   portalViewType,
@@ -51,6 +53,10 @@ const renderHome = async ({
   window.history.replaceState(null, '', `/${search}`);
 
   vi.doMock('react-i18next', () => ({ useTranslation: translate }));
+  vi.doMock('@/store/serverConfig', () => ({
+    useServerConfigStore: (selector: (state: unknown) => unknown) =>
+      selector({ serverConfig: { newApiChat } }),
+  }));
   vi.doMock('../HomeHeader', () => homeHeaderStub);
   vi.doMock('../HomeModeContent', () => modeStub('home-mode-content'));
   vi.doMock('../HomePortrait', () => stub('home-portrait'));
@@ -87,6 +93,7 @@ const renderHome = async ({
 };
 
 afterEach(() => {
+  vi.doUnmock('@/store/serverConfig');
   cleanup();
   window.history.replaceState(null, '', '/');
   vi.doUnmock('react-i18next');
@@ -105,6 +112,12 @@ afterEach(() => {
 });
 
 describe('Home portrait visibility', () => {
+  it('hides preset model shortcuts in a New API deployment', async () => {
+    await renderHome({ newApiChat: true });
+    expect(screen.queryByTestId('new-model-shortcuts')).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-input-area')).toBeInTheDocument();
+  });
+
   it('shows the portrait and its bubble by default for a signed-in viewer', async () => {
     await renderHome();
 
@@ -233,8 +246,9 @@ describe('Home input banner queue', () => {
     }));
 
     try {
-      const { InputBanner, InputBannerQueue, InputBannerSegment } =
-        await import('../InputArea/InputBanner');
+      const { InputBanner, InputBannerQueue, InputBannerSegment } = await import(
+        '../InputArea/InputBanner'
+      );
       const { container } = render(
         <InputBannerQueue>
           <InputBannerSegment dismissId={'first'}>

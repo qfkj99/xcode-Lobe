@@ -8,6 +8,19 @@ import {
 } from '@/types/aiProvider';
 
 export class AiProviderService {
+  recoverNewApiTopic = (input: {
+    topicId: string;
+    model: string;
+    provider: string;
+    expectedModel: string | null;
+    expectedProvider: string | null;
+  }) => lambdaClient.aiProvider.recoverNewApiTopic.mutate(input);
+  getNewApiGroupCatalog = (provider: string) =>
+    lambdaClient.aiProvider.getNewApiGroupCatalog.query({ provider });
+
+  resolveNewApiSelection = (selection: { model: string; provider: string }) =>
+    lambdaClient.aiProvider.resolveNewApiSelection.query(selection);
+
   createAiProvider = async (params: CreateAiProviderParams) => {
     return lambdaClient.aiProvider.createAiProvider.mutate(params);
   };

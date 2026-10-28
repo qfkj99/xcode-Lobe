@@ -51,6 +51,8 @@ export interface LobeGroupSession {
 }
 
 export interface LobeAgentSettings {
+  /** Completed one-time repair of legacy provider defaults in New API mode. */
+  newApiDefaultsVersion?: number;
   /**
    * Language model agent configuration
    */

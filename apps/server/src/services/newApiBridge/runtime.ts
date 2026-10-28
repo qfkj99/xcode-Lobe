@@ -7,13 +7,7 @@ import type { LobeChatDatabase } from '@/database/type';
 import { bridgeMediaHooks } from './media';
 import { bridgeGroupHeaders, getBridgeGroups, resolveBridgeGroup } from './groups';
 
-import {
-  assertBridgeIdentity,
-  BRIDGE_COOKIE,
-  bridgeConfig,
-  openBridgeIdentity,
-  type BridgeIdentity,
-} from './security';
+import { BRIDGE_COOKIE, bridgeConfig, openBridgeIdentity, type BridgeIdentity } from './security';
 
 export const getBridgeRuntimeIdentity = async (_db: LobeChatDatabase, userId: string) => {
   let requestCookie: string | undefined;
@@ -24,7 +18,8 @@ export const getBridgeRuntimeIdentity = async (_db: LobeChatDatabase, userId: st
   }
   const identity = openBridgeIdentity(requestCookie);
   if (!identity || identity.userId !== userId) throw new Error('New API login required');
-  await assertBridgeIdentity(identity);
+  // The request proxy validates the exact parent session. Groups/models/relay
+  // also validate this grant at New API; do not add another introspect roundtrip.
   return identity;
 };
 
@@ -75,7 +70,7 @@ export const getBridgeModelIdsFromIdentity = async (identity: BridgeIdentity, gr
   const response = await fetch(new URL('/v1/models', config.internalURL), {
     cache: 'no-store',
     headers: {
-      'Authorization': `Bearer ${identity.credential}`,
+      Authorization: `Bearer ${identity.credential}`,
       'X-Lobe-Bridge-Secret': config.secret,
       ...bridgeGroupHeaders(group),
     },

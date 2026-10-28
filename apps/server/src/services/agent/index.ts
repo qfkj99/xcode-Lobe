@@ -24,6 +24,8 @@ import {
   RedisKeyNamespace,
   RedisKeys,
 } from '@/server/modules/Redis';
+import { bridgeEnabled } from '@/server/services/newApiBridge/security';
+import { bridgeSelectionRepair } from '@/server/services/newApiBridge/selection';
 import { assertCanPerformResourceAction } from '@/server/services/resourcePermission';
 
 import { type UpdateAgentResult } from './type';
@@ -323,7 +325,10 @@ export class AgentService {
       (defaultAgentConfig as { config?: PartialDeep<LobeAgentConfig> })?.config || {};
     const withUserConfig = merge(baseConfig, userDefaultAgentConfig);
 
-    return merge(withUserConfig, cleanObject(agent));
+    const config = merge(withUserConfig, cleanObject(agent));
+    return bridgeEnabled()
+      ? { ...config, ...bridgeSelectionRepair(config, userDefaultAgentConfig) }
+      : config;
   }
 
   /**

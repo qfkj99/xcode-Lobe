@@ -1,10 +1,13 @@
 import { useCallback } from 'react';
 
 import { useChatStore } from '@/store/chat';
+import { topicSelectors } from '@/store/chat/slices/topic/selectors';
+import { recoverNewApiTopic } from '@/utils/recoverNewApiTopic';
 
 import { useTopicModel } from '../../hooks/useEffectiveModel';
 import { useTopicId } from '../../hooks/useTopicId';
 import { useNewApiTopicSelection } from './useNewApiTopicSelection';
+import { useNewApiSelectionRecovery } from './useNewApiSelectionRecovery';
 
 interface ModelAndProvider {
   model: string;
@@ -51,5 +54,20 @@ export const useTopicModelSwitch = ({
     [canSelectModel, managed.enabled, managed.select, selectModel, topicId, updateTopicModel],
   );
 
-  return { model, provider, switchModel, topicId };
+  const recoverModel = useCallback(
+    async (selection: ModelAndProvider) => {
+      if (topicId) {
+        const expected = topicSelectors.getTopicById(topicId)(useChatStore.getState());
+        return recoverNewApiTopic(topicId, { model, provider }, expected ?? {});
+      } else await selectModel(selection);
+    },
+    [model, provider, selectModel, topicId],
+  );
+  const recovery = useNewApiSelectionRecovery(
+    { model, provider },
+    topicId,
+    canSelectModel,
+    recoverModel,
+  );
+  return { model, provider, switchModel, topicId, recovery };
 };

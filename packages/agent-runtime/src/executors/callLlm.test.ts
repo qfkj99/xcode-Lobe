@@ -275,6 +275,8 @@ describe('callLlm executor', () => {
     // must merge the provenance stamp onto them.
     expect(messages.update).toHaveBeenCalledWith('assistant-existing', {
       metadata: { operationId: 'op-1' },
+      model: 'gpt-4',
+      provider: 'openai',
     });
     expect(transport.createTrace).toHaveBeenCalledWith(
       expect.objectContaining({

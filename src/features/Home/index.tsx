@@ -12,6 +12,7 @@ import { useChatStore } from '@/store/chat';
 import { chatPortalSelectors } from '@/store/chat/selectors';
 import { useGlobalStore } from '@/store/global';
 import { systemStatusSelectors } from '@/store/global/selectors';
+import { useServerConfigStore } from '@/store/serverConfig';
 import { useTaskStore } from '@/store/task';
 import { taskDetailSelectors } from '@/store/task/selectors';
 import { useUserStore } from '@/store/user';
@@ -336,6 +337,7 @@ const styles = createStaticStyles(({ css }) => ({
 }));
 
 const Home = memo(() => {
+  const managed = useServerConfigStore((s) => s.serverConfig.newApiChat);
   const isLogin = useUserStore(authSelectors.isLogin);
   const showHomeRail = useGlobalStore(systemStatusSelectors.showHomeRail);
   const showHomePortrait = useGlobalStore(systemStatusSelectors.showHomePortrait);
@@ -429,9 +431,9 @@ const Home = memo(() => {
       >
         <Flexbox className={styles.inputArea} gap={12}>
           <InputArea
-            showNewModelShortcuts
             inputValue={inputValue}
             mode={mode}
+            showNewModelShortcuts={!managed}
             onInputValueChange={handleInputValueChange}
             onModeChange={setMode}
           />

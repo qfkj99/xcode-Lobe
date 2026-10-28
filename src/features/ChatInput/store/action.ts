@@ -62,7 +62,7 @@ export const store: CreateStore = (publicState) => (set, get) => ({
     return String(readDocument(get().editor, 'markdown') || '').trimEnd();
   },
   handleSendButton: () => {
-    if (get().newApiModelSelectionPending) return;
+    if (get().newApiModelSelectionPending || get().newApiModelUnavailable) return;
     const editor = get().editor;
     if (!editor) return;
 
@@ -122,7 +122,7 @@ export const store: CreateStore = (publicState) => (set, get) => ({
     });
   },
   handleVoiceMessageSend: (recording) => {
-    if (get().newApiModelSelectionPending) return false;
+    if (get().newApiModelSelectionPending || get().newApiModelUnavailable) return false;
     return get().onVoiceMessageSend?.(recording) ?? false;
   },
 

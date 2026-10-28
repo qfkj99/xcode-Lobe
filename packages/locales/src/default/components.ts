@@ -1,4 +1,12 @@
 export default {
+  'ModelSwitchPanel.newApiNoChatModels':
+    'Your account has no available chat models. Contact the site administrator or retry after access is restored.',
+  'ModelSwitchPanel.newApiLoading': 'Loading available models…',
+  'ModelSwitchPanel.newApiLoadFailed':
+    'Could not prepare the model. Check your connection and retry.',
+  'ModelSwitchPanel.newApiRetry': 'Retry',
+  'ModelSwitchPanel.newApiAutoSwitched':
+    'The previous model is unavailable. Switched to {{model}} in {{group}}; billing follows the new selection.',
   'ModelSwitchPanel.newApiGroup': 'Group: {{name}}',
   'ModelSwitchPanel.newApiSelectGroup': 'Select group',
   'ModelSwitchPanel.newApiBackToGroups': 'Back to groups',

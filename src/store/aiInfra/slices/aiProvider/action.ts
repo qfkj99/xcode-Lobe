@@ -43,6 +43,7 @@ import { isManagedNewApiProvider } from '@/utils/newApiModelPricing';
 import { setNamespace } from '@/utils/storeDebug';
 
 import { initialAIModelState, seedModelReasoningConfigMap } from '../aiModel/initialState';
+import { fetchNewApiRuntimeState } from './newApiRuntimeState';
 import {
   AI_PROVIDER_LIST_KEY,
   aiProviderDetailResource,
@@ -114,7 +115,6 @@ const getModelProperty = async <T>(
   model: EnabledAiModel,
   propertyName: keyof AiFullModelCard,
 ): Promise<T | undefined> => {
-  // Provider catalog prices do not represent the managed gateway's user/group billing.
   if (
     propertyName === 'pricing' &&
     isManagedNewApiProvider(model.providerId, getServerConfigStoreState()?.serverConfig.newApiChat)
@@ -345,6 +345,8 @@ const buildVideoProviderModelLists = async (
 const fetchAiProviderRuntimeState = async (
   isLogin: boolean,
 ): Promise<AiProviderRuntimeStateView> => {
+  if (isLogin && getServerConfigStoreState()?.serverConfig.newApiChat)
+    return fetchNewApiRuntimeState();
   const [{ loadDefaultHiddenBuiltinModels, loadModels }, { DEFAULT_MODEL_PROVIDER_LIST }] =
     await Promise.all([
       import('@/business/client/model-bank/loadModels'),
@@ -386,7 +388,6 @@ const fetchAiProviderRuntimeState = async (
       'video',
     );
 
-    // Build model lists with proper async handling
     const [
       enabledChatModelList,
       enabledEmbeddingModelList,
@@ -455,7 +456,6 @@ const fetchAiProviderRuntimeState = async (
     })
     .map((item) => ({ id: item.id, name: item.name, source: AiProviderSourceEnum.Builtin }));
 
-  // Build model lists for non-login state as well
   const enabledAiModels = builtinAiModelList.filter((m) => m.enabled);
   const enabledAsrAiProviders = filterEnabledProvidersByModelType(
     enabledAiProviders,

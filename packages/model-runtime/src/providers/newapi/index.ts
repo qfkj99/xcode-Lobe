@@ -86,7 +86,11 @@ export const params = {
     // Get base URL (remove trailing API version paths like /v1, /v1beta, etc.)
     const baseURL = openAIClient.baseURL.replace(/\/v\d+[a-z]*\/?$/, '');
 
-    const modelsPage = (await openAIClient.models.list()) as any;
+    const modelsPage = (await openAIClient.models.list(
+      process.env.NEW_API_CHAT_BRIDGE_SECRET
+        ? { signal: AbortSignal.timeout(10_000), maxRetries: 0 }
+        : undefined,
+    )) as any;
     const modelList: NewAPIModelCard[] = modelsPage.data || [];
 
     // Create a set of existing model IDs for quick lookup
@@ -95,11 +99,11 @@ export const params = {
     // Try to get pricing information to enrich model details
     const pricingMap: Map<string, NewAPIPricing> = new Map();
 
-    const pricingList = await fetchPricing(
-      `${baseURL}/api/pricing`,
-      openAIClient.apiKey || '',
-      providerId,
-    );
+    // Managed accounts use group billing, so public base prices are discarded
+    // by the bridge anyway. Do not block login on this optional, unbounded fetch.
+    const pricingList = process.env.NEW_API_CHAT_BRIDGE_SECRET
+      ? null
+      : await fetchPricing(`${baseURL}/api/pricing`, openAIClient.apiKey || '', providerId);
     if (Array.isArray(pricingList)) {
       pricingList.forEach((pricing) => {
         pricingMap.set(pricing.model_name, pricing);
