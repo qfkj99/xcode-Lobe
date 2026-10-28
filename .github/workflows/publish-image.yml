@@ -29,8 +29,8 @@ jobs:
           BRIDGE_TEST_DEPENDENCIES: ${{ runner.temp }}/bridge-tests
         run: |
           node deploy/lobehub/sync-compose-build.mjs --check
-          npm install --prefix "$BRIDGE_TEST_DEPENDENCIES" --no-audit --no-fund --package-lock=false @electric-sql/pglite@0.3.14 drizzle-orm@0.44.7 p-map@7.0.3 happy-dom@20.8.4 @testing-library/react@16.3.0 react@19.2.0 react-dom@19.2.0
-          node --test .github/scripts/newapi-bridge-regression.test.mjs .github/scripts/newapi-composer-regression.test.mjs .github/scripts/newapi-message-selection-regression.test.mjs
+          npm install --prefix "$BRIDGE_TEST_DEPENDENCIES" --no-audit --no-fund --package-lock=false @electric-sql/pglite@0.3.14 drizzle-orm@0.44.7 p-map@7.0.3 happy-dom@20.8.4 @testing-library/react@16.3.0 react@19.2.0 react-dom@19.2.0 @upstash/qstash@2.12.0 @upstash/workflow@0.2.23
+          node --test .github/scripts/newapi-bridge-regression.test.mjs .github/scripts/newapi-composer-regression.test.mjs .github/scripts/newapi-message-selection-regression.test.mjs .github/scripts/newapi-startup-regression.test.mjs
       - name: Free runner disk space
         run: |
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android

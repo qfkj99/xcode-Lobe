@@ -135,6 +135,9 @@ const runScript = (scriptPath, useProxy = false, args = []) => {
 
 // Function to start the bot gateway by calling the local API endpoint
 const startGateway = async () => {
+  // New API deployments block /api/agent/* and do not run the bot gateway.
+  if (process.env.NEW_API_CHAT_BRIDGE_SECRET) return;
+
   const KEY_VAULTS_SECRET = process.env.KEY_VAULTS_SECRET;
   if (!KEY_VAULTS_SECRET) return;
 

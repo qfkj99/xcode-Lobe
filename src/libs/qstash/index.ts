@@ -132,25 +132,47 @@ export class OtelWorkflowClient extends WorkflowClient {
   }
 }
 
+// Optional workflow modules are imported by ordinary chat routes too. Defer SDK
+// construction until a configured workflow is actually used, preserving `this`
+// for SDK methods and accessors. A failed initialization can be retried.
+const lazyClient = <T extends object>(create: (token: string) => T): T => {
+  let client: T | undefined;
+  return new Proxy({} as T, {
+    get(_target, property) {
+      const token = process.env.QSTASH_TOKEN;
+      if (!token) throw new Error('QSTASH_TOKEN is required to use background workflows');
+      client ??= create(token);
+      const value = Reflect.get(client, property, client);
+      return typeof value === 'function' ? value.bind(client) : value;
+    },
+  });
+};
+
 /**
- * QStash client with Vercel Deployment Protection bypass headers.
+ * Lazy QStash client with Vercel Deployment Protection bypass headers.
  * Use as `qstashClient` option in Upstash Workflow `serve()`.
  *
  * @see https://upstash.com/docs/workflow/troubleshooting/vercel
  */
-export const qstashClient = new OtelQstashClient({
-  headers,
-  token: process.env.QSTASH_TOKEN!,
-});
+export const qstashClient = lazyClient(
+  (token) =>
+    new OtelQstashClient({
+      headers,
+      token,
+    }),
+);
 
 /**
  * Workflow client with Vercel Deployment Protection bypass headers.
  * Use for triggering workflows via `workflowClient.trigger()`.
  */
-export const workflowClient = new OtelWorkflowClient({
-  headers,
-  token: process.env.QSTASH_TOKEN!,
-});
+export const workflowClient = lazyClient(
+  (token) =>
+    new OtelWorkflowClient({
+      headers,
+      token,
+    }),
+);
 
 /**
  * Verify QStash signature using Receiver.
