@@ -36,6 +36,7 @@ interface ResolvedChatInputNotice {
     | 'input.agentModeUnsupportedModel'
     | 'input.modelDisabled'
     | 'input.modelUnavailable'
+    | 'input.newApiVisionDisabled'
     | 'input.viewOnlyAgent'
     | 'input.viewOnlyGroup';
   type: 'warning';
@@ -274,6 +275,9 @@ export const useChatInputNotices = (): ChatInputNotice[] => {
     isModelConfigReady,
     isResourceViewOnly: !canUseResource,
   });
+  if (managed && currentChatModel?.abilities?.vision === false) {
+    notices.push({ key: 'input.newApiVisionDisabled', type: 'warning' });
+  }
 
   const handleEnableModel = useCallback(async () => {
     if (managed) return;

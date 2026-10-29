@@ -3,6 +3,7 @@
   "ModelSwitchPanel.newApiLoading": "正在加载可用模型…",
   "ModelSwitchPanel.newApiLoadFailed": "模型准备未完成，请检查网络后重试。",
   "ModelSwitchPanel.newApiRetry": "重试",
+  "ModelSwitchPanel.newApiVisionDisabled": "此模型已关闭图片输入。历史图片仍会保留，但不会随新请求发送；如需发送图片，请选择其他模型。",
   "ModelSwitchPanel.newApiAutoSwitched": "原模型已不可用，已切换到 {{group}} 分组的 {{model}}，后续按新选择计费。",
   "ModelSwitchPanel.newApiGroup": "分组：{{name}}",
   "ModelSwitchPanel.newApiSelectGroup": "选择分组",

@@ -12,6 +12,7 @@ export interface NewApiSelection {
 }
 
 export interface NewApiSelectionResolution extends NewApiSelection {
+  vision?: boolean;
   changed: boolean;
   groupName: string;
 }

@@ -6,6 +6,7 @@ import type { CreateRouterRuntimeOptions } from '../../core/RouterRuntime/create
 import { detectModelProvider, processMultiProviderModelList } from '../../utils/modelParse';
 import { responsesAPIModels } from '../openai/modelId';
 import { resolveProviderRouteModels } from '../utils/resolveProviderRouteModels';
+import { fetchManagedNewApiModels } from './managedModels';
 
 export interface NewAPIModelCard {
   created: number;
@@ -80,6 +81,13 @@ export const params = {
   },
   id: ModelProvider.NewAPI,
   models: async ({ client: openAIClient, options }) => {
+    if (process.env.NEW_API_CHAT_BRIDGE_SECRET) {
+      return fetchManagedNewApiModels(
+        openAIClient.baseURL,
+        openAIClient.apiKey,
+        options?.defaultHeaders || {},
+      );
+    }
     const providerId =
       typeof options?.providerId === 'string' ? options.providerId : ModelProvider.NewAPI;
 

@@ -32,6 +32,7 @@ export const useNewApiSelectionRecovery = (
   const sync = newApiCatalogActions.useFetchSelection(
     enabled && canSelect && agentId && ready ? selection : undefined,
     context,
+    !topicId,
   );
   const applying = useRef<string | undefined>(undefined);
   const result = sync.data;
@@ -42,7 +43,9 @@ export const useNewApiSelectionRecovery = (
   currentKey.current = selectionKey;
   const saveError = failure?.key === selectionKey ? failure.error : undefined;
   const blocked =
-    enabled && canSelect && (!ready || !result || !!sync.error || !!saveError || !!needsSwitch);
+    enabled &&
+    canSelect &&
+    (!ready || !result || !!sync.isValidating || !!sync.error || !!saveError || !!needsSwitch);
 
   // Gate text, keyboard and voice paths until authority and the
   // persisted topic pin agree. Cleanup belongs to this composer only.
@@ -82,6 +85,7 @@ export const useNewApiSelectionRecovery = (
           await sync.mutate();
           return;
         }
+        if (!topicId) return;
         toast.info(
           t('ModelSwitchPanel.newApiAutoSwitched', {
             model: applied?.model ?? result.model,
@@ -102,10 +106,12 @@ export const useNewApiSelectionRecovery = (
     selection.model,
     selection.provider,
     selectionKey,
+    topicId,
     t,
   ]);
 
   return {
+    visionDisabled: enabled && result?.vision === false,
     blocked,
     noModels: isTrpcErrorCode(sync.error, 'PRECONDITION_FAILED'),
     error: sync.error || saveError,

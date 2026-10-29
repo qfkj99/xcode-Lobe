@@ -5,6 +5,7 @@ import { parse } from 'cookie';
 import type { LobeChatDatabase } from '@/database/type';
 
 import { bridgeMediaHooks } from './media';
+import { enforceBridgeModelPolicy } from './modelPolicy';
 import { bridgeGroupHeaders, getBridgeGroups, resolveBridgeGroup } from './groups';
 
 import { BRIDGE_COOKIE, bridgeConfig, openBridgeIdentity, type BridgeIdentity } from './security';
@@ -47,11 +48,22 @@ export const createBridgeRuntimeFromIdentity = (
     'newapi',
     {
       apiKey: identity.credential,
+      maxRetries: 0,
       baseURL: new URL('/v1', config.internalURL).toString(),
       defaultHeaders: { 'X-Lobe-Bridge-Secret': config.secret, ...bridgeGroupHeaders(group) },
       userId: identity.userId,
     },
-    db ? bridgeMediaHooks(db, identity.userId) : undefined,
+    {
+      beforeChat: async (payload, options) => {
+        payload.messages = await enforceBridgeModelPolicy(
+          identity,
+          group,
+          payload.model,
+          payload.messages,
+        );
+        if (db) await bridgeMediaHooks(db, identity.userId).beforeChat?.(payload, options);
+      },
+    },
   );
 };
 

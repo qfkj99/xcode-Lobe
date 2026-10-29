@@ -3,6 +3,7 @@
   "ModelSwitchPanel.newApiLoading": "Loading available models…",
   "ModelSwitchPanel.newApiLoadFailed": "Could not prepare the model. Check your connection and retry.",
   "ModelSwitchPanel.newApiRetry": "Retry",
+  "ModelSwitchPanel.newApiVisionDisabled": "Image input is disabled for this model. Historical images remain visible but are excluded from new requests. Choose another model to send images.",
   "ModelSwitchPanel.newApiAutoSwitched": "The previous model is unavailable. Switched to {{model}} in {{group}}; billing follows the new selection.",
   "ModelSwitchPanel.newApiGroup": "Group: {{name}}",
   "ModelSwitchPanel.newApiSelectGroup": "Select group",

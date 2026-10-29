@@ -1,6 +1,5 @@
 import { createReplicaSlice, defineReplica, recordLens } from '@/libs/replica';
 import { aiProviderService } from '@/services/aiProvider';
-import { useAiInfraStore } from '@/store/aiInfra';
 import type { EnabledProviderWithModels } from '@/types/aiProvider';
 
 import { type NewApiCatalogState, useNewApiCatalogStore } from './store';
@@ -15,9 +14,6 @@ const resource = defineReplica<string, EnabledProviderWithModels>({
         abilities: m.abilities || {},
         displayName: m.displayName || m.id,
       }));
-    // Reuse the session's fetched metadata in the global capability projection.
-    // Its replica owns the write and keeps account/scope reset guards intact.
-    await useAiInfraStore.getState().refreshAiProviderRuntimeState();
     return { children, id: provider, name: catalog.name, source: 'custom' as const };
   },
   key: (provider) => provider,

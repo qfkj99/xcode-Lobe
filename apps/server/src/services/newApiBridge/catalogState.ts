@@ -23,8 +23,19 @@ export const getBridgeCatalogState = async (
   const existing = await getLoadedBridgeCatalogs(identity, catalog);
   for (const group of groups) {
     const cards = existing.get(group);
-    if (cards) fallback = bridgeChatSelection(group, await getBridgeGroupCatalog(identity, group));
+    if (cards) fallback = bridgeChatSelection(group, cards);
     if (fallback) break;
+  }
+  for (const candidate of catalog.default_candidates ?? []) {
+    if (fallback) break;
+    if (!catalog.groups[candidate.group]) continue;
+    const cards = await getBridgeGroupCatalog(identity, candidate.group);
+    if (
+      cards.some((model) => model.id === candidate.model && (!model.type || model.type === 'chat'))
+    ) {
+      fallback = { model: candidate.model, provider: bridgeGroupProvider(candidate.group) };
+      break;
+    }
   }
   // Normally one lookup. Only an empty default group requires trying another.
   for (const group of groups) {

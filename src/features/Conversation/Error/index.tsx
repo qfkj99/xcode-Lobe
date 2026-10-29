@@ -35,6 +35,7 @@ import { getRuntimeErrorMessage } from '@/utils/locale/runtimeErrorMessage';
 
 import ChatInvalidAPIKey from './ChatInvalidApiKey';
 import { readClientLlmWait } from './clientLlmWait';
+import { getNewApiErrorMessage } from './newApiErrorMessage';
 import { type DedicatedErrorCardType, isDedicatedErrorCardType } from './dedicatedErrorCards';
 import { isHeterogeneousAgentStatusGuideError } from './heterogeneous';
 import { useHeterogeneousAutoRetry } from './useHeterogeneousAutoRetry';
@@ -302,10 +303,14 @@ const ErrorMessageExtra = memo<ErrorExtraProps>(
     const sessionErrorBody = error?.body;
     const rawErrorMessage = getRawErrorMessage(error);
     const errorDetails = getErrorDetails(error);
+    const managed = useServerConfigStore((state) => !!state.serverConfig.newApiChat);
+    const managedReason = managed ? getNewApiErrorMessage(error) : undefined;
     const localizedErrorMessage = hasLocalizedErrorMessage(error?.type)
       ? alertError?.message
       : undefined;
-    const displayMessage = localizedErrorMessage ?? rawErrorMessage ?? alertError?.message;
+    const displayMessage = managedReason
+      ? t('input.newApiRequestFailed', { reason: managedReason })
+      : localizedErrorMessage ?? rawErrorMessage ?? alertError?.message;
 
     const delAndRegenerateMessage = useConversationStore((s) => s.delAndRegenerateMessage);
     const updateMessageError = useConversationStore((s) => s.updateMessageError);
