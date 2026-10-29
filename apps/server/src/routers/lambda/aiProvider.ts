@@ -107,17 +107,24 @@ export const aiProviderRouter = router({
       return {
         provider: input.provider,
         name: group,
-        models: bridgeStoredModels(await getBridgeGroupCatalog(identity, group)),
+        models: bridgeStoredModels(await getBridgeGroupCatalog(identity, group, true)),
       };
     }),
 
   resolveNewApiSelection: aiProviderProcedure
-    .input(z.object({ model: z.string().max(512), provider: z.string().max(100) }))
+    .input(
+      z.object({
+        model: z.string().max(512),
+        provider: z.string().max(100),
+        useDefault: z.boolean().optional(),
+      }),
+    )
     .query(async ({ input, ctx }) => {
       if (!bridgeEnabled()) throw new TRPCError({ code: 'NOT_FOUND' });
       return resolveBridgeSelection(
         await getBridgeRuntimeIdentity(ctx.serverDB, ctx.userId),
         input,
+        input.useDefault,
       );
     }),
 

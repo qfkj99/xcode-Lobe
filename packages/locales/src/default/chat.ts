@@ -1,4 +1,6 @@
 export default {
+  'input.newApiRequestFailed': '{{reason}} You can choose another model or remove attachments before retrying. This request will not be resent automatically.',
+  'input.newApiVisionDisabled': 'Image input is disabled for this model. Historical images are preserved but excluded from new requests. Choose another model to send images.',
   'backgroundActivity.alertDesc': '{{name}} is using {{memory}} of memory and {{cpu}} CPU.',
   'backgroundActivity.cpu': 'CPU',
   'backgroundActivity.details': 'View details',

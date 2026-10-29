@@ -27,6 +27,9 @@ export const resolveNewApiTopicModel = async <T extends ModelSelection>(
     model: current.model,
     provider: current.provider || '',
   });
+  if (resolved.vision === false) {
+    toast.info(t('ModelSwitchPanel.newApiVisionDisabled', { ns: 'components' }));
+  }
   if (resolved.changed) {
     if (topicId)
       resolved = await recoverNewApiTopic(

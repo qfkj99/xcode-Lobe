@@ -1,4 +1,6 @@
 {
+  "input.newApiRequestFailed": "{{reason}} 你可以换一个模型，或移除附件后重试。系统不会自动重发本次请求。",
+  "input.newApiVisionDisabled": "此模型已关闭图片输入。历史图片会保留，但不会随新请求发送；如需发送图片，请选择其他模型。",
   "ModelSwitch.title": "模型",
   "active": "活跃",
   "addAgent": "添加助理",

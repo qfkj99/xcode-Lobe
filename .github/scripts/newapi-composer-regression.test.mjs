@@ -29,6 +29,7 @@ const state = {
 };
 globalThis.newApiComposerTest = state;
 const mocks = new Map([
+  ['@lobechat/utils/object', `export const isRecord=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);`],
   ['@/utils/trpcError', `export const isTrpcErrorCode=(error,code)=>error?.code===code;`],
   [
     '@/services/aiProvider',
@@ -41,7 +42,7 @@ const mocks = new Map([
   ['react-i18next', `export const useTranslation=()=>({t:()=> 'Switched'});`],
   [
     '@/store/newApiCatalog',
-    `export const newApiCatalogActions={useFetchSelection:()=>globalThis.newApiComposerTest.sync};`,
+    `export const newApiCatalogActions={useFetchSelection:()=>globalThis.newApiComposerTest.sync,preload:async(ids)=>globalThis.newApiComposerTest.preloads.push(ids),refresh:async()=>{globalThis.newApiComposerTest.refreshes++;}};`,
   ],
   [
     '@/store/serverConfig',
@@ -65,6 +66,12 @@ const mocks = new Map([
   ],
   ['../../hooks/useAgentId', `export const useAgentId=()=> 'agent';`],
   ['../../store', `export const useStoreApi=()=>globalThis.newApiComposerTest.input;`],
+  [
+    '@/store/aiInfra',
+    `export const useAiInfraStore=fn=>fn({enabledAiProviders:globalThis.newApiComposerTest.providers});`,
+  ],
+  ['@/store/user', `export const useUserStore=fn=>fn({userId:'user'});`],
+  ['@/store/user/selectors', `export const userProfileSelectors={userId:s=>s.userId};`],
 ]);
 registerHooks({
   resolve(specifier, context, next) {
@@ -139,6 +146,9 @@ beforeEach(() => {
   state.notifications = [];
   state.topicLoaded = true;
   state.agentLoaded = true;
+  state.providers = undefined;
+  state.preloads = [];
+  state.refreshes = 0;
 });
 
 test('composer stays blocked until the selected model has an authority result', () => {
@@ -239,4 +249,29 @@ test('topic hydration never auto-switches the temporary agent default', () => {
   );
   assert.equal(result.current.blocked, true);
   assert.equal(applies, 0);
+});
+
+const { useNewApiCatalogPreload } = await import(
+  pathToFileURL(path.join(root, 'src/layout/GlobalProvider/useNewApiCatalogPreload.ts')).href
+);
+test('cold catalog initialization waits for providers and focus refreshes current authority', async () => {
+  const hook = renderHook(() => useNewApiCatalogPreload(true));
+  assert.deepEqual(state.preloads, []);
+  state.providers = [{ id: 'newapi-group-a' }, { id: 'newapi-group-b' }];
+  hook.rerender();
+  assert.deepEqual(state.preloads, [['newapi-group-a', 'newapi-group-b']]);
+  await act(async () => window.dispatchEvent(new window.Event('focus')));
+  assert.equal(state.refreshes, 1);
+  hook.unmount();
+  window.dispatchEvent(new window.Event('focus'));
+  assert.equal(state.refreshes, 1);
+});
+
+const { getNewApiErrorMessage } = await import(pathToFileURL(path.join(root, 'src/features/Conversation/Error/newApiErrorMessage.ts')).href);
+test('managed provider errors expose the actionable reason without stack or endpoint details', () => {
+  const envelope = {body:{provider:'newapi-group-test',endpoint:'http://private',error:{message:'Image unsupported'}}};
+  assert.equal(getNewApiErrorMessage(envelope),'Image unsupported');
+  assert.equal(getNewApiErrorMessage({body:{stack:'Error: '+JSON.stringify(envelope)+'\n at internal'}}),'Image unsupported');
+  assert.equal(getNewApiErrorMessage({body:{provider:'openai',error:{message:'Other provider'}}}),undefined);
+  assert.equal(getNewApiErrorMessage({body:{stack:'Error: unstructured'}}),undefined);
 });

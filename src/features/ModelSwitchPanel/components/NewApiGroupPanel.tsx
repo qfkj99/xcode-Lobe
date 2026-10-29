@@ -1,6 +1,6 @@
 import { Button, cssVar, DropdownMenuItem, Flexbox, Icon, SearchBar } from '@lobehub/ui';
 import { ArrowLeft, Check, ChevronRight } from 'lucide-react';
-import { type ComponentProps, useLayoutEffect, useRef } from 'react';
+import { type ComponentProps, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAiInfraStore } from '@/store/aiInfra';
@@ -21,6 +21,11 @@ export const NewApiGroupPanel = ({
   ...listProps
 }: NewApiGroupPanelProps) => {
   const { t } = useTranslation('components');
+  useEffect(() => {
+    void newApiCatalogActions
+      .refresh()
+      .catch((error) => console.error('[newApiCatalog] Selector refresh failed:', error));
+  }, []);
   const { provider: currentProvider } = useModelAndProvider(model, provider);
   const legacyGroupName = useAiInfraStore(
     (s) => s.enabledAiProviders?.find((item) => item.id === 'newapi')?.name,

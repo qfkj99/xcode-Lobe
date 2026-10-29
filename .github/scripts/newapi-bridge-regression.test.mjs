@@ -97,7 +97,7 @@ const mocks = new Map([
   ],
   [
     'bridge-security',
-    `export const bridgeEnabled=()=>true;export const bridgeRequest=async()=>{if(globalThis.bridgeRegression.groupError)throw Error('Group network timeout');return globalThis.bridgeRegression.groups;};`,
+    `export const bridgeEnabled=()=>true;export const bridgeRequest=async(path,body)=>{const s=globalThis.bridgeRegression;if(s.groupError)throw Error('Group network timeout');return path==='/api/lobe/models'?(s.models[body.group||s.groups.default_group]||[]):s.groups;};`,
   ],
 ]);
 registerHooks({
@@ -133,7 +133,8 @@ registerHooks({
       };
     if (
       specifier.startsWith('./') &&
-      context.parentURL?.includes('/newApiBridge/') &&
+      (context.parentURL?.includes('/newApiBridge/') ||
+        context.parentURL?.includes('/providers/newapi/')) &&
       !path.extname(specifier)
     )
       return { shortCircuit: true, url: new URL(specifier + '.ts', context.parentURL).href };
@@ -278,7 +279,12 @@ test('managed catalog loading skips public pricing while standalone New API reta
   const previousFetch = globalThis.fetch;
   const previousSecret = process.env.NEW_API_CHAT_BRIDGE_SECRET;
   let pricingRequests = 0;
-  globalThis.fetch = async () => {
+  globalThis.fetch = async (url) => {
+    if (new URL(url).pathname === '/api/lobe/models')
+      return Response.json({
+        success: true,
+        data: [{ id: 'allowed', type: 'chat', vision: true }],
+      });
     pricingRequests++;
     return Response.json({ success: true, data: [{ model_name: 'public-only' }] });
   };
@@ -379,6 +385,7 @@ test('a valid topic group is checked directly without waiting for another group'
     ...selected,
     changed: false,
     groupName: 'premium',
+    vision: false,
   });
   assert.deepEqual(state.calls, ['premium']);
 });
@@ -392,7 +399,7 @@ test('removed model or revoked group falls back to default group', async () => {
       provider: bridgeGroupProvider('revoked'),
     }),
   );
-  assert.deepEqual(result, { ...fallback, changed: true, groupName: 'default' });
+  assert.deepEqual(result, { ...fallback, changed: true, groupName: 'default', vision: false });
 });
 
 test('empty default falls back deterministically to next authorized chat group', async () => {
@@ -403,6 +410,77 @@ test('empty default falls back deterministically to next authorized chat group',
   );
   assert.equal(result.provider, bridgeGroupProvider('premium'));
   assert.deepEqual(state.calls, ['default', 'premium']);
+});
+
+test('a default group containing only non-chat models falls back to an authorized chat group', async () => {
+  state.groups.groups = { default: {desc:'',ratio:1}, premium:{desc:'',ratio:1} };
+  state.models = { default:[{id:'text-embedding-3-small',type:'embedding'},{id:'tts-1',type:'tts'}], premium:[{id:'chat',type:'chat'}] };
+  const result = await settleCatalogs(resolveBridgeSelection(state.identity,{model:'old',provider:'newapi'},true));
+  assert.equal(result.model,'chat');
+  assert.equal(result.provider,bridgeGroupProvider('premium'));
+});
+
+test('new conversations use ordered authorized defaults while existing selections remain pinned', async () => {
+  state.groups = {
+    default_group: 'default',
+    groups: { default: { desc: '', ratio: 1 }, premium: { desc: '', ratio: 1 } },
+    default_candidates: [
+      { group: 'forbidden', model: 'secret' },
+      { group: 'premium', model: 'missing' },
+      { group: 'premium', model: 'preferred' },
+    ],
+  };
+  state.models = {
+    default: [{ id: 'old', type: 'chat' }],
+    premium: [{ id: 'preferred', type: 'chat', vision: true }],
+  };
+  const selected = { model: 'old', provider: bridgeGroupProvider('default') };
+  const existing = await settleCatalogs(resolveBridgeSelection(state.identity, selected));
+  assert.equal(existing.model, 'old');
+  assert.equal(existing.changed, false);
+  state.calls = [];
+  const fresh = await settleCatalogs(resolveBridgeSelection(state.identity, selected, true));
+  assert.equal(fresh.model, 'preferred');
+  assert.equal(fresh.provider, bridgeGroupProvider('premium'));
+  assert.equal(fresh.vision, true);
+  assert.deepEqual(state.calls, ['premium']);
+  state.groups.default_candidates = [{ group: 'default', model: 'old' }];
+  assert.equal(
+    (await settleCatalogs(resolveBridgeSelection(state.identity, fresh, true))).model,
+    'old',
+  );
+});
+
+const { enforceBridgeModelPolicy } = await import(
+  pathToFileURL(path.join(bridgeDir, 'modelPolicy.ts')).href
+);
+test('send-time vision policy strips historical images without mutating stored messages', async () => {
+  state.groups.default_group = 'default';
+  state.models.default = [{ id: 'chat', vision: false }];
+  const messages = [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'keep' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
+      ],
+    },
+    { role: 'assistant', content: 'history' },
+  ];
+  const snapshot = structuredClone(messages);
+  const filtered = await enforceBridgeModelPolicy(state.identity, 'default', 'chat', messages);
+  assert.deepEqual(messages, snapshot);
+  assert.deepEqual(filtered[0].content, [{ type: 'text', text: 'keep' }]);
+  state.models.default[0].vision = true;
+  assert.deepEqual(
+    await enforceBridgeModelPolicy(state.identity, 'default', 'chat', messages),
+    snapshot,
+  );
+  state.models.default = [];
+  await assert.rejects(
+    enforceBridgeModelPolicy(state.identity, 'default', 'chat', messages),
+    /unavailable/,
+  );
 });
 
 test('network errors do not become unavailable selections and failed catalogs can retry', async () => {

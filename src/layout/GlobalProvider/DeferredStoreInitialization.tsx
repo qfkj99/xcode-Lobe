@@ -6,6 +6,7 @@ import { useAiInfraStore } from '@/store/aiInfra';
 import { useElectronStore } from '@/store/electron';
 import { electronSyncSelectors } from '@/store/electron/selectors';
 import { useUserMemoryStore } from '@/store/userMemory';
+import { useNewApiCatalogPreload } from './useNewApiCatalogPreload';
 
 interface DeferredStoreInitializationProps {
   isLogin: boolean;
@@ -18,6 +19,7 @@ const DeferredStoreInitialization = memo<DeferredStoreInitializationProps>(({ is
 
   useInitAiProviderKeyVaults(isLogin, isSyncActive);
   useFetchPersona(isLogin);
+  useNewApiCatalogPreload(isLogin);
 
   return null;
 });

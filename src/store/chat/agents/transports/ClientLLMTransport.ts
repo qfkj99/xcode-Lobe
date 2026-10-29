@@ -27,6 +27,8 @@ import { t } from 'i18next';
 
 import { chatService } from '@/services/chat';
 import { getFileStoreState } from '@/store/file/store';
+import { getServerConfigStoreState } from '@/store/serverConfig';
+import { isManagedNewApiProvider } from '@/utils/newApiModelPricing';
 import { sleep } from '@/utils/sleep';
 
 import type { ChatStore } from '../../store';
@@ -126,6 +128,7 @@ class ClientLLMRetryPolicy implements LLMRetryPolicy {
   }
 
   maxAttempts(provider: string) {
+    if (isManagedNewApiProvider(provider, !!getServerConfigStoreState().serverConfig.newApiChat)) return 1;
     return resolveLLMMaxAttempts(provider, CLIENT_LLM_RETRY_POLICY);
   }
 

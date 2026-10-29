@@ -18,7 +18,7 @@ export class AiProviderService {
   getNewApiGroupCatalog = (provider: string) =>
     lambdaClient.aiProvider.getNewApiGroupCatalog.query({ provider });
 
-  resolveNewApiSelection = (selection: { model: string; provider: string }) =>
+  resolveNewApiSelection = (selection: { model: string; provider: string; useDefault?: boolean }) =>
     lambdaClient.aiProvider.resolveNewApiSelection.query(selection);
 
   createAiProvider = async (params: CreateAiProviderParams) => {

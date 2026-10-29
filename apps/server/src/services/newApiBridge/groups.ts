@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bridgeRequest, type BridgeIdentity } from './security';
 
 export interface BridgeGroups {
+  default_candidates?: { group: string; model: string }[];
   default_group: string;
   groups: Record<string, { desc: string; ratio: number | 'auto' }>;
 }
@@ -11,9 +12,18 @@ export const bridgeGroupProvider = (group: string) =>
   `newapi-group-${createHash('sha256').update(group).digest('hex').slice(0, 40)}`;
 
 export const getBridgeGroups = async (identity: BridgeIdentity): Promise<BridgeGroups> => {
-  const result = await bridgeRequest<BridgeGroups>('/api/lobe/groups', {
+  const result = await bridgeRequest<BridgeGroups>('/api/lobe/config', {
     credential: identity.credential,
   });
+  if (
+    result.default_candidates &&
+    (!Array.isArray(result.default_candidates) ||
+      result.default_candidates.some(
+        (item) =>
+          !item || typeof item.group !== 'string' || typeof item.model !== 'string' || !item.model,
+      ))
+  )
+    throw new Error('Invalid New API default candidates');
   if (typeof result.default_group !== 'string' || !result.groups || Array.isArray(result.groups))
     throw new Error('Invalid New API group response');
   for (const [group, details] of Object.entries(result.groups)) {

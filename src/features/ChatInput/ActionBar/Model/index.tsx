@@ -52,6 +52,10 @@ const ModelSwitch = memo(() => {
         {t('ModelSwitchPanel.newApiRetry', { ns: 'components' })}
       </Button>
     </Flexbox>
+  ) : recovery.visionDisabled ? (
+    <Flexbox padding={12} role="status">
+      {t('ModelSwitchPanel.newApiVisionDisabled', { ns: 'components' })}
+    </Flexbox>
   ) : enabledList ? (
     <Alert
       showIcon
