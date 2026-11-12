@@ -58,6 +58,14 @@ test('an explicit internal gateway address is preserved', () => {
   assert.equal(actual.services.lobe.environment.NEW_API_INTERNAL_URL, 'http://gateway.internal:3000')
 })
 
+test('every runtime recipe passes the exact additional parent allowlist', () => {
+  for (const file of ['compose.yml', 'deploy/lobehub/compose.image.yml', 'deploy/lobehub/compose.baota.yml']) {
+    const actual = config(file, { NEW_API_ADDITIONAL_PARENT_ORIGINS: 'https://second.example,https://third.example' })
+    assert.equal(actual.services.lobe.environment.NEW_API_ADDITIONAL_PARENT_ORIGINS, 'https://second.example,https://third.example')
+    assert.equal(actual.services.lobe.environment.NEW_API_PUBLIC_URL, env.NEW_API_PUBLIC_URL)
+  }
+})
+
 test('root .env is loaded by include without exporting configuration in the shell', () => {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'lobe-compose-env-'))
   try {

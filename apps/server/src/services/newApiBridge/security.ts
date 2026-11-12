@@ -1,7 +1,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
-export const BRIDGE_COOKIE = 'newapi.bridge';
-export const FLOW_COOKIE = 'newapi.flow';
+// New names avoid legacy unpartitioned cookies shadowing their CHIPS twins.
+export const BRIDGE_COOKIE = 'newapi.bridge.v2';
+export const FLOW_COOKIE = 'newapi.flow.v2';
 
 export interface BridgeIdentity {
   credential: string;
@@ -11,6 +12,16 @@ export interface BridgeIdentity {
 }
 
 export const bridgeEnabled = () => Boolean(process.env.NEW_API_CHAT_BRIDGE_SECRET);
+
+const parentOrigin = (value: string) => {
+  const url = new URL(value.trim());
+  if (
+    !['http:', 'https:'].includes(url.protocol) || url.username || url.password ||
+    (url.pathname !== '/' && url.pathname !== '') || url.search || url.hash ||
+    url.hostname.includes('*') || url.origin === 'null'
+  ) throw new Error('Invalid New API parent origin');
+  return url.origin;
+};
 
 export const bridgeConfig = () => {
   const secret = process.env.NEW_API_CHAT_BRIDGE_SECRET;
@@ -26,7 +37,12 @@ export const bridgeConfig = () => {
       throw new Error('Invalid New API bridge URL');
     }
   }
-  return { appURL, authSecret, internalURL, publicURL, secret };
+  const parentOrigins = [...new Set([
+    parentOrigin(publicURL.href),
+    ...(process.env.NEW_API_ADDITIONAL_PARENT_ORIGINS || '')
+      .split(/[,\s]+/).filter(Boolean).map(parentOrigin),
+  ])];
+  return { appURL, authSecret, internalURL, parentOrigins, publicURL, secret };
 };
 
 const encryptionKey = () =>
@@ -92,12 +108,19 @@ export const assertBridgeIdentity = async (identity: BridgeIdentity) => {
     throw new Error('New API session expired');
 };
 
+// CHIPS isolates an embedded chat session by top-level website. Every auth
+// cookie, including refresh and expiry writes, must use the same attributes.
+export const bridgeAuthCookieAttributes = () => {
+  if (!bridgeEnabled()) return {};
+  if (bridgeConfig().appURL.protocol !== 'https:')
+    return { httpOnly: true, sameSite: 'lax' as const, secure: false };
+  return { httpOnly: true, sameSite: 'none' as const, secure: true, partitioned: true };
+};
+
 export const bridgeCookieOptions = (maxAge: number) => ({
-  httpOnly: true,
+  ...bridgeAuthCookieAttributes(),
   maxAge,
   path: '/',
-  sameSite: 'lax' as const,
-  secure: bridgeConfig().appURL.protocol === 'https:',
 });
 
 export const subjectEmail = (sub: string) =>
