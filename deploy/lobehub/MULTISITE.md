@@ -39,3 +39,12 @@ node --test deploy/lobehub/compose.test.mjs
    在隔离环境阻断所有旧域名访问，复验登录、聊天、上传下载、支付和密码重置，再决定不续费。
 
 本次共存修复不执行主站迁移，旧域名仍须保持有效。
+
+## 聊天服务自身域名迁移
+
+`NEW_API_ADDITIONAL_APP_ORIGINS` 是聊天应用的旧/备用 origin 白名单，和父站白名单不同。
+把 APP_URL 改为新聊天地址时，将旧聊天地址放在该变量；桥接完成、Better Auth 和
+历史 `/f/<id>` 附件都按明确白名单验证，不允许父站替代聊天 origin，不允许通配符。
+旧新聊天 origin 仍各自使用 host-only 分区 Cookie，重新打开 iframe 会自动建立新会话。
+旧域最终退役时再从 app origin 白名单移除；先确认历史附件已能通过新入口使用。
+对象存储 CORS 需同时保留旧新聊天 origin，S3_ENDPOINT 的切换不能靠重定向签名 URL。

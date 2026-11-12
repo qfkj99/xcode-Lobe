@@ -31,7 +31,7 @@ import { expireLegacyHostOnlyCookies } from '@/libs/better-auth/utils/host-only-
 import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { clearMismatchedOIDCSession } from '@/libs/oidc-provider/session-cleanup';
 import { EmailService } from '@/server/services/email';
-import { bridgeAuthCookieAttributes, bridgeEnabled } from '@/server/services/newApiBridge/security';
+import { bridgeAuthCookieAttributes, bridgeConfig, bridgeEnabled } from '@/server/services/newApiBridge/security';
 import { UserService } from '@/server/services/user';
 
 const LOCAL_NO_PROXY_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -140,7 +140,9 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
 
     baseURL: appEnv.APP_URL,
     secret: authEnv.AUTH_SECRET,
-    trustedOrigins: getTrustedOrigins(enabledSSOProviders),
+    trustedOrigins: bridgeEnabled()
+      ? [...new Set([...getTrustedOrigins(enabledSSOProviders), ...bridgeConfig().appOrigins])]
+      : getTrustedOrigins(enabledSSOProviders),
 
     emailAndPassword: {
       autoSignIn: true,

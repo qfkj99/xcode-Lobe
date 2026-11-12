@@ -120,3 +120,16 @@ test('removing the old primary does not change account identity encryption', () 
   assert.deepEqual(security.openBridgeIdentity(sealed), identity);
   assert.deepEqual(security.bridgeConfig().parentOrigins, ['https://new.example']);
 });
+
+test('chat migration retains only explicitly configured application origins', () => {
+  process.env.APP_URL = 'https://chat.new.example';
+  process.env.NEW_API_ADDITIONAL_APP_ORIGINS = 'https://chat.old.example';
+  assert.deepEqual(security.bridgeConfig().appOrigins, ['https://chat.new.example', 'https://chat.old.example']);
+  assert.equal(security.isBridgeAppOrigin('https://chat.old.example'), true);
+  assert.equal(security.isBridgeAppOrigin('https://chat.new.example'), true);
+  assert.equal(security.isBridgeAppOrigin('https://new.example'), false);
+  assert.equal(security.isBridgeAppOrigin('https://chat.old.example.evil.test'), false);
+  assert.equal(security.isBridgeAppOrigin(null), false);
+  process.env.NEW_API_ADDITIONAL_APP_ORIGINS = 'https://chat.old.example/path';
+  assert.throws(() => security.bridgeConfig());
+});

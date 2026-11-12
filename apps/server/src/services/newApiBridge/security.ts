@@ -42,8 +42,16 @@ export const bridgeConfig = () => {
     ...(process.env.NEW_API_ADDITIONAL_PARENT_ORIGINS || '')
       .split(/[,\s]+/).filter(Boolean).map(parentOrigin),
   ])];
-  return { appURL, authSecret, internalURL, parentOrigins, publicURL, secret };
+  const appOrigins = [...new Set([
+    parentOrigin(appURL.href),
+    ...(process.env.NEW_API_ADDITIONAL_APP_ORIGINS || '')
+      .split(/[,\s]+/).filter(Boolean).map(parentOrigin),
+  ])];
+  return { appOrigins, appURL, authSecret, internalURL, parentOrigins, publicURL, secret };
 };
+
+export const isBridgeAppOrigin = (origin: string | null | undefined) =>
+  typeof origin === 'string' && bridgeConfig().appOrigins.includes(origin);
 
 const encryptionKey = () =>
   createHash('sha256').update(`newapi-bridge:v1:${bridgeConfig().authSecret}`).digest();

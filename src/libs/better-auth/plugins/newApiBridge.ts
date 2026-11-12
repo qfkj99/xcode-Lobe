@@ -9,9 +9,9 @@ import { startBridgeTiming } from '@/server/services/newApiBridge/timing';
 import {
   BRIDGE_COOKIE,
   FLOW_COOKIE,
-  bridgeConfig,
   bridgeCookieOptions,
   bridgeRequest,
+  isBridgeAppOrigin,
   sealBridgeIdentity,
   subjectEmail,
 } from '@/server/services/newApiBridge/security';
@@ -28,8 +28,7 @@ export const newApiBridge = (): BetterAuthPlugin => ({
       },
       async (ctx) => {
         const timing = startBridgeTiming();
-        const config = bridgeConfig();
-        if (ctx.headers?.get('origin') !== config.appURL.origin) {
+        if (!isBridgeAppOrigin(ctx.headers?.get('origin'))) {
           throw new APIError('FORBIDDEN', { message: 'Invalid bridge origin' });
         }
         const challenge = ctx.getCookie(FLOW_COOKIE);
