@@ -256,6 +256,24 @@ describe('defineConfig', () => {
     expect(options.advanced.cookiePrefix).toBe('example-app');
   });
 
+  it('partitions every Better Auth cookie for the HTTPS New API iframe without reusing legacy names', async () => {
+    process.env.NEW_API_CHAT_BRIDGE_SECRET = 'b'.repeat(40);
+    process.env.AUTH_SECRET = 'a'.repeat(40);
+    process.env.NEW_API_PUBLIC_URL = 'https://old.example';
+    process.env.NEW_API_INTERNAL_URL = 'http://gateway:3000';
+    process.env.APP_URL = 'https://chat.old.example';
+    const { defineConfig } = await import('./define-config');
+    defineConfig({ cookiePrefix: 'newapi-lobe', plugins: [] });
+    const [options] = mocks.betterAuth.mock.lastCall!;
+    expect(options.advanced.cookiePrefix).toBe('newapi-lobe-bridge-v2');
+    expect(options.advanced.defaultCookieAttributes).toEqual({
+      httpOnly: true,
+      sameSite: 'none',
+      secure: true,
+      partitioned: true,
+    });
+  });
+
   it.each([['https://app.example.com'], ['https://example.com']])(
     'should share auth cookies across subdomains when APP_URL %s is under the cookie domain',
     async (appUrl) => {

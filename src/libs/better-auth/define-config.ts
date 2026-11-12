@@ -31,6 +31,7 @@ import { expireLegacyHostOnlyCookies } from '@/libs/better-auth/utils/host-only-
 import { parseSSOProviders } from '@/libs/better-auth/utils/server';
 import { clearMismatchedOIDCSession } from '@/libs/oidc-provider/session-cleanup';
 import { EmailService } from '@/server/services/email';
+import { bridgeAuthCookieAttributes, bridgeEnabled } from '@/server/services/newApiBridge/security';
 import { UserService } from '@/server/services/user';
 
 const LOCAL_NO_PROXY_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
@@ -291,6 +292,10 @@ export function defineConfig(customOptions: CustomBetterAuthOptions) {
         crossSubDomainCookies: { domain: cookieDomain, enabled: true },
       }),
       ...(customOptions.cookiePrefix && { cookiePrefix: customOptions.cookiePrefix }),
+      ...(bridgeEnabled() && {
+        cookiePrefix: `${customOptions.cookiePrefix || 'better-auth'}-bridge-v2`,
+        defaultCookieAttributes: bridgeAuthCookieAttributes(),
+      }),
       database: {
         /**
          * Align Better Auth user IDs with our shared idGenerator for consistency.

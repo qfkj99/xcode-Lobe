@@ -74,7 +74,7 @@ export const frameNewApiResponse = (response: Response) => {
     response.headers.delete('X-Frame-Options');
     response.headers.set(
       'Content-Security-Policy',
-      `frame-ancestors ${bridgeConfig().publicURL.origin}`,
+      `frame-ancestors ${bridgeConfig().parentOrigins.join(' ')}`,
     );
     response.headers.set('Referrer-Policy', 'no-referrer');
     response.headers.set('Cache-Control', 'no-store');

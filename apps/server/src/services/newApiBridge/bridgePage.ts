@@ -7,19 +7,21 @@ export const bridgePage = () => {
   if (!bridgeEnabled()) return new Response(null, { status: 404 });
   const challenge = randomBytes(32).toString('base64url');
   const scriptNonce = randomBytes(18).toString('base64url');
-  const parentOrigin = bridgeConfig().publicURL.origin;
-  const json = (value: string) => JSON.stringify(value).replaceAll('<', '\\u003c');
+  const parentOrigins = bridgeConfig().parentOrigins;
+  const json = (value: unknown) => JSON.stringify(value).replaceAll('<', '\\u003c');
   const response = new NextResponse(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LobeHub</title></head><body><script nonce="${scriptNonce}">
-const parentOrigin = ${json(parentOrigin)};
+const parentOrigins = ${json(parentOrigins)};
+let parentOrigin;
 const challenge = ${json(challenge)};
 let completing = false;
 const started = performance.now();
 try { sessionStorage.setItem('newapi:entryStarted', String(performance.timeOrigin + started)); } catch {}
 const send = (type) => parent.postMessage({type, challenge}, parentOrigin);
 addEventListener('message', async (event) => {
-  if (event.origin !== parentOrigin || event.source !== parent || event.data?.type !== 'newapi:launch' || completing) return;
+  if (!parentOrigins.includes(event.origin) || event.source !== parent || event.data?.type !== 'newapi:launch' || completing) return;
   if (typeof event.data.ticket !== 'string') return;
+  parentOrigin = event.origin;
   completing = true;
   try {
     const response = await fetch('/newapi/bridge/complete', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ticket:event.data.ticket})});
@@ -32,12 +34,12 @@ addEventListener('message', async (event) => {
     send('newapi:error');
   }
 });
-send('newapi:ready');
+for (const origin of parentOrigins) parent.postMessage({type:'newapi:ready', challenge}, origin);
 </script></body></html>`,
     {
       headers: {
         'Cache-Control': 'no-store',
-        'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${scriptNonce}'; connect-src 'self'; frame-ancestors ${parentOrigin}`,
+        'Content-Security-Policy': `default-src 'none'; script-src 'nonce-${scriptNonce}'; connect-src 'self'; frame-ancestors ${parentOrigins.join(' ')}`,
         'Content-Type': 'text/html; charset=utf-8',
         'Referrer-Policy': 'no-referrer',
       },
