@@ -22,10 +22,11 @@ export const inlineBridgeMedia = async (
   let fileService: FileService | undefined;
   let bytesRead = 0;
   const cache = new Map<string, string>();
-  const appOrigin = bridgeConfig().appURL.origin;
+  const { appURL, appOrigins } = bridgeConfig();
+  const appOrigin = appURL.origin;
   const inline = async (source: string) => {
     const url = new URL(source, appOrigin);
-    if (url.origin !== appOrigin || !url.pathname.startsWith('/f/')) return source;
+    if (!appOrigins.includes(url.origin) || !url.pathname.startsWith('/f/')) return source;
     if (cache.has(url.pathname)) return cache.get(url.pathname)!;
     const match = /^\/f\/([^/]+)$/.exec(url.pathname);
     if (!match) throw new Error('Invalid private attachment URL');
